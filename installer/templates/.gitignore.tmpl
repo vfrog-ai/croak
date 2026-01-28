@@ -1,0 +1,58 @@
+# CROAK Project .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+
+# ML artifacts (large files)
+*.pt
+*.pth
+*.onnx
+*.engine
+*.trt
+!training/configs/*.yaml
+
+# Data (usually too large for git)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Training outputs
+training/experiments/*/
+mlruns/
+wandb/
+
+# Evaluation
+evaluation/reports/*.html
+evaluation/reports/*.json
+
+# Deployment packages
+deployment/edge/*.onnx
+deployment/edge/*.engine
+
+# Environment
+.env
+.env.local
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

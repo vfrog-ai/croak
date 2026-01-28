@@ -1,0 +1,85 @@
+# Training Handoff Contract Schema
+# Defines the contract between Training Agent and Evaluation Agent
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "TrainingHandoff"
+description: "Contract for handing off trained model to evaluation"
+
+type: object
+required:
+  - model_path
+  - architecture
+  - config
+  - experiment
+  - training_metrics
+  - checkpoints
+  - compute
+  - dataset_hash
+  - random_seed
+
+properties:
+  model_path:
+    type: string
+    description: "Path to the best model weights"
+
+  architecture:
+    type: string
+    description: "Model architecture (e.g., yolov8s)"
+
+  config:
+    type: object
+    description: "Training configuration used"
+
+  experiment:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      tracking_uri:
+        type: string
+    description: "Experiment tracking information"
+
+  training_metrics:
+    type: object
+    properties:
+      final_mAP50:
+        type: number
+      final_mAP50_95:
+        type: number
+      best_epoch:
+        type: integer
+      total_epochs:
+        type: integer
+    description: "Final training metrics"
+
+  checkpoints:
+    type: array
+    items:
+      type: object
+      properties:
+        path:
+          type: string
+        epoch:
+          type: integer
+    description: "Available checkpoints"
+
+  compute:
+    type: object
+    properties:
+      provider:
+        type: string
+      gpu_type:
+        type: string
+      training_time_seconds:
+        type: number
+    description: "Compute resources used"
+
+  dataset_hash:
+    type: string
+    description: "Hash of the training dataset for reproducibility"
+
+  random_seed:
+    type: integer
+    description: "Random seed used for reproducibility"

@@ -1,0 +1,66 @@
+{
+  "name": "croak-cv",
+  "version": "0.1.0",
+  "description": "CROAK - Computer Recognition Orchestration Agent Kit. Agentic framework for object detection model development.",
+  "keywords": [
+    "computer-vision",
+    "object-detection",
+    "yolo",
+    "ml",
+    "machine-learning",
+    "deep-learning",
+    "ai",
+    "agentic",
+    "mlops",
+    "vfrog"
+  ],
+  "homepage": "https://croak.vfrog.ai",
+  "bugs": {
+    "url": "https://github.com/vfrog-ai/croak/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vfrog-ai/croak.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "vfrog.ai",
+    "email": "hello@vfrog.ai",
+    "url": "https://vfrog.ai"
+  },
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "croak": "bin/croak.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/croak.js",
+    "test": "node --test",
+    "lint": "eslint src bin",
+    "format": "prettier --write src bin"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "enquirer": "^2.4.1",
+    "execa": "^8.0.1",
+    "fs-extra": "^11.2.0",
+    "ora": "^8.0.1",
+    "semver": "^7.6.0",
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

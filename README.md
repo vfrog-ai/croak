@@ -6,24 +6,73 @@
 
 CROAK is an open-source agentic framework that guides developers through the complete lifecycle of building and deploying object detection models. It operates as a specialized "team" of AI agents callable from modern coding assistants (Claude Code, Cursor, Codex).
 
+## Installation
+
+### Option 1: npm CLI (Recommended)
+
+The fastest way to get started. Requires Node.js 18+.
+
+```bash
+# Initialize a new CROAK project with interactive setup
+npx croak-cv init
+
+# Or install globally for repeated use
+npm install -g croak-cv
+croak init
+```
+
+### Option 2: pip (Python Package)
+
+For Python-first workflows or programmatic access.
+
+```bash
+pip install croak-cv
+croak init
+```
+
+### Option 3: From Source
+
+```bash
+git clone https://github.com/vfrog-ai/croak.git
+cd croak
+./install.sh        # Unix/macOS
+# or
+./install.ps1       # Windows PowerShell
+```
+
 ## Quick Start
 
 ```bash
-# Install CROAK
-pip install croak-cv
-
-# Initialize in your project
+# 1. Initialize a new project
 croak init
 
-# Scan your images
-croak scan ./images
+# 2. Check your environment
+croak doctor
 
-# Follow the guided workflow
-croak prepare  # Data preparation
-croak train    # Model training
-croak evaluate # Model evaluation
-croak deploy   # Deployment
+# 3. Add images to data/raw/ and scan them
+croak scan
+
+# 4. Follow the guided workflow
+croak prepare  # Data preparation & annotation
+croak train    # Model training (local or Modal.com GPU)
+croak evaluate # Model evaluation & diagnostics
+croak deploy   # Deploy to cloud (vfrog) or edge (TensorRT)
 ```
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `croak init` | Initialize CROAK in current directory |
+| `croak doctor` | Check environment and dependencies |
+| `croak scan` | Scan and analyze your image dataset |
+| `croak prepare` | Prepare dataset for training |
+| `croak train` | Configure and run model training |
+| `croak evaluate` | Evaluate trained model performance |
+| `croak deploy` | Deploy model to cloud or edge |
+| `croak status` | Show current pipeline status |
+| `croak upgrade` | Upgrade to latest version |
+| `croak help` | Show help |
 
 ## What CROAK Does
 
@@ -36,9 +85,18 @@ CROAK provides structured workflows for computer vision model development:
 
 ## Requirements
 
-- Python 3.10+
-- [vfrog.ai](https://vfrog.ai) account (for annotation)
-- NVIDIA GPU (optional, for local training/edge deployment)
+- **Node.js** 18.0.0+ (for CLI installer)
+- **Python** 3.10+ (for training/evaluation)
+- **Git** (recommended)
+- [vfrog.ai](https://vfrog.ai) account (for annotation and cloud deployment)
+- NVIDIA GPU (optional - can use [Modal.com](https://modal.com) for cloud GPU)
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `VFROG_API_KEY` | vfrog.ai API key | For annotation/deployment |
+| `MODAL_TOKEN_ID` | Modal.com token (via `modal setup`) | For cloud GPU training |
 
 ## Features
 
@@ -51,12 +109,39 @@ CROAK provides structured workflows for computer vision model development:
 - ✅ Edge deployment (ONNX, TensorRT, CUDA)
 - ✅ MLflow/W&B experiment tracking
 
+## Project Structure
+
+After running `croak init`, your project will have:
+
+```
+your-project/
+├── .croak/
+│   ├── config.yaml          # Project configuration
+│   ├── pipeline-state.yaml  # Pipeline progress tracking
+│   ├── agents/              # Agent definitions
+│   ├── workflows/           # Workflow specifications
+│   ├── knowledge/           # Knowledge base
+│   └── contracts/           # Handoff contracts
+├── data/
+│   ├── raw/                 # Raw images
+│   └── processed/           # Processed datasets
+├── training/
+│   ├── configs/             # Training configurations
+│   ├── scripts/             # Training scripts
+│   └── experiments/         # Experiment outputs
+├── evaluation/
+│   └── reports/             # Evaluation reports
+└── deployment/
+    └── edge/                # Edge deployment packages
+```
+
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
 - [Agent Reference](docs/agents.md)
 - [Workflow Guide](docs/workflows.md)
 - [Knowledge Base](knowledge/README.md)
+- [Installer README](installer/README.md)
 
 ## Philosophy
 
@@ -66,6 +151,33 @@ CROAK provides structured workflows for computer vision model development:
 - Mentor, not teacher - explains the "why" behind recommendations
 - Validates before expensive operations
 - Production-first, not prototype-first
+
+## Troubleshooting
+
+### Python not found
+
+Ensure Python 3.10+ is installed and in your PATH:
+
+```bash
+python3 --version
+```
+
+### No GPU detected
+
+CROAK will automatically use Modal.com for cloud GPU training:
+
+```bash
+pip install modal
+modal setup
+```
+
+### vfrog API key not working
+
+1. Verify the key at https://vfrog.ai/settings/api
+2. Ensure the environment variable is set:
+   ```bash
+   export VFROG_API_KEY=your_api_key_here
+   ```
 
 ## License
 

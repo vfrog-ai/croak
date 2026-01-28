@@ -1,0 +1,61 @@
+# Data Handoff Contract Schema
+# Defines the contract between Data Agent and Training Agent
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "DataHandoff"
+description: "Contract for handing off prepared dataset to training"
+
+type: object
+required:
+  - dataset_path
+  - format
+  - data_yaml_path
+  - splits
+  - classes
+  - statistics
+  - validation_passed
+
+properties:
+  dataset_path:
+    type: string
+    description: "Path to the prepared dataset directory"
+
+  format:
+    type: string
+    enum: ["yolo", "coco", "voc"]
+    description: "Dataset format"
+
+  data_yaml_path:
+    type: string
+    description: "Path to data.yaml for training"
+
+  splits:
+    type: object
+    properties:
+      train:
+        type: integer
+        description: "Number of training images"
+      val:
+        type: integer
+        description: "Number of validation images"
+      test:
+        type: integer
+        description: "Number of test images"
+
+  classes:
+    type: array
+    items:
+      type: string
+    description: "List of class names"
+
+  statistics:
+    type: object
+    description: "Dataset statistics"
+
+  validation_passed:
+    type: boolean
+    description: "Whether dataset passed validation"
+
+  vfrog_project_id:
+    type: string
+    description: "vfrog.ai project ID if annotations came from vfrog"

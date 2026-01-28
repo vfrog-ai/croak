@@ -1,0 +1,43 @@
+# Development files
+.eslintrc*
+.prettierrc*
+.editorconfig
+.gitignore
+
+# Test files
+test/
+tests/
+__tests__/
+*.test.js
+*.spec.js
+coverage/
+
+# Documentation sources
+docs/
+*.md
+!README.md
+
+# Build artifacts
+*.log
+npm-debug.log*
+.npm
+.cache
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local development
+.env
+.env.*
+*.local
+
+# Examples (keep in templates)
+examples/
