@@ -24,7 +24,7 @@ compute:
 training:
   framework: "ultralytics"
   architecture: "yolov8s"  # yolov8n, yolov8s, yolov8m, yolov11s, rt-detr
-  epochs: 100
+  epochs: 125
   batch_size: 16
   image_size: 640
   patience: 20  # Early stopping patience

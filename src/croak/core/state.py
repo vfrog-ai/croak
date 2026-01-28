@@ -91,6 +91,10 @@ class PipelineState(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
+    # Workflow tracking
+    workflow_progress: dict[str, list[str]] = Field(default_factory=dict)
+    workflow_artifacts: dict[str, dict] = Field(default_factory=dict)
+
     @classmethod
     def load(cls, state_path: Path) -> "PipelineState":
         """Load state from YAML file."""
@@ -155,3 +159,63 @@ class PipelineState(BaseModel):
             current = current.parent
 
         return None
+
+    # Workflow tracking methods
+    def get_workflow_progress(self, workflow_id: str) -> list[str]:
+        """Get list of completed steps for a workflow.
+
+        Args:
+            workflow_id: Workflow identifier.
+
+        Returns:
+            List of completed step IDs.
+        """
+        return self.workflow_progress.get(workflow_id, [])
+
+    def complete_workflow_step(
+        self,
+        workflow_id: str,
+        step_id: str,
+        artifacts: Optional[dict] = None
+    ) -> None:
+        """Mark a workflow step as completed.
+
+        Args:
+            workflow_id: Workflow identifier.
+            step_id: Step identifier.
+            artifacts: Optional artifacts produced by the step.
+        """
+        if workflow_id not in self.workflow_progress:
+            self.workflow_progress[workflow_id] = []
+
+        if step_id not in self.workflow_progress[workflow_id]:
+            self.workflow_progress[workflow_id].append(step_id)
+
+        if artifacts:
+            if workflow_id not in self.workflow_artifacts:
+                self.workflow_artifacts[workflow_id] = {}
+            self.workflow_artifacts[workflow_id][step_id] = artifacts
+
+    def reset_workflow(self, workflow_id: str) -> None:
+        """Reset progress for a workflow.
+
+        Args:
+            workflow_id: Workflow identifier.
+        """
+        self.workflow_progress.pop(workflow_id, None)
+        self.workflow_artifacts.pop(workflow_id, None)
+
+    def get_workflow_artifacts(self, workflow_id: str, step_id: Optional[str] = None) -> dict:
+        """Get artifacts for a workflow or specific step.
+
+        Args:
+            workflow_id: Workflow identifier.
+            step_id: Optional step identifier.
+
+        Returns:
+            Artifacts dict.
+        """
+        workflow_arts = self.workflow_artifacts.get(workflow_id, {})
+        if step_id:
+            return workflow_arts.get(step_id, {})
+        return workflow_arts
