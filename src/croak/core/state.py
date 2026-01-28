@@ -219,3 +219,16 @@ class PipelineState(BaseModel):
         if step_id:
             return workflow_arts.get(step_id, {})
         return workflow_arts
+
+
+def load_state(project_root: Path) -> PipelineState:
+    """Load pipeline state from project root.
+
+    Args:
+        project_root: Path to project root directory.
+
+    Returns:
+        PipelineState instance.
+    """
+    state_path = project_root / ".croak" / "pipeline-state.yaml"
+    return PipelineState.load(state_path)

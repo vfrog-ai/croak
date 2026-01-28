@@ -22,7 +22,7 @@ export async function copyTemplates(croakDir) {
     { src: 'workflows', dest: 'workflows' },
     { src: 'knowledge', dest: 'knowledge' },
     { src: 'contracts', dest: 'contracts' },
-    { src: 'templates', dest: 'templates' }
+    { src: 'templates', dest: 'templates' },
   ];
 
   for (const { src, dest } of directories) {
@@ -88,8 +88,8 @@ export function listAgentTemplates() {
   }
 
   return readdirSync(agentsPath, { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => dirent.name);
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name);
 }
 
 /**
@@ -103,8 +103,8 @@ export function listWorkflowTemplates() {
   }
 
   return readdirSync(workflowsPath, { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => dirent.name);
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name);
 }
 
 /**
@@ -116,12 +116,14 @@ export function createPlaceholders(croakDir) {
     'agents/router/router.agent.yaml': '# Router agent - will be populated by croak upgrade',
     'agents/data/data.agent.yaml': '# Data agent - will be populated by croak upgrade',
     'agents/training/training.agent.yaml': '# Training agent - will be populated by croak upgrade',
-    'agents/evaluation/evaluation.agent.yaml': '# Evaluation agent - will be populated by croak upgrade',
-    'agents/deployment/deployment.agent.yaml': '# Deployment agent - will be populated by croak upgrade',
+    'agents/evaluation/evaluation.agent.yaml':
+      '# Evaluation agent - will be populated by croak upgrade',
+    'agents/deployment/deployment.agent.yaml':
+      '# Deployment agent - will be populated by croak upgrade',
     'workflows/data-preparation/workflow.yaml': '# Data preparation workflow',
     'workflows/model-training/workflow.yaml': '# Model training workflow',
     'workflows/model-evaluation/workflow.yaml': '# Model evaluation workflow',
-    'workflows/model-deployment/workflow.yaml': '# Model deployment workflow'
+    'workflows/model-deployment/workflow.yaml': '# Model deployment workflow',
   };
 
   for (const [relativePath, content] of Object.entries(placeholders)) {

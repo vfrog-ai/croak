@@ -46,12 +46,10 @@ export async function upgradeCommand(options) {
 
       // Perform upgrade
       await performUpgrade(latestVersion);
-
     } else {
       spinner.succeed('You are on the latest version!');
       console.log(chalk.green(`\n✨ CROAK ${currentVersion} is up to date.\n`));
     }
-
   } catch (error) {
     spinner.fail('Failed to check for updates');
     console.error(chalk.red(`\nError: ${error.message}`));
@@ -102,7 +100,7 @@ async function performUpgrade(latestVersion) {
     type: 'confirm',
     name: 'confirmUpgrade',
     message: `Upgrade to version ${latestVersion}?`,
-    initial: true
+    initial: true,
   });
 
   if (!confirmUpgrade) {
@@ -134,9 +132,8 @@ async function performUpgrade(latestVersion) {
     console.log(chalk.green(`\n✨ Successfully upgraded to CROAK ${latestVersion}!\n`));
 
     // Show changelog
-    console.log(chalk.cyan('What\'s new:'));
+    console.log(chalk.cyan("What's new:"));
     console.log(chalk.dim('  See https://github.com/vfrog-ai/croak/releases\n'));
-
   } catch (error) {
     spinner.fail('Upgrade failed');
     throw error;

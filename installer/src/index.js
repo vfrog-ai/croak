@@ -24,16 +24,16 @@ export const DEFAULT_CONFIG = {
   project: {
     name: '',
     task_type: 'detection',
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   },
   vfrog: {
     api_key_env: 'VFROG_API_KEY',
-    project_id: ''
+    project_id: '',
   },
   compute: {
     provider: 'modal',
     gpu_type: 'T4',
-    timeout_hours: 4
+    timeout_hours: 4,
   },
   training: {
     framework: 'ultralytics',
@@ -41,38 +41,38 @@ export const DEFAULT_CONFIG = {
     epochs: 100,
     batch_size: 16,
     image_size: 640,
-    patience: 20
+    patience: 20,
   },
   tracking: {
     backend: 'mlflow',
     mlflow: {
-      tracking_uri: './mlruns'
-    }
+      tracking_uri: './mlruns',
+    },
   },
   data: {
     format: 'yolo',
     splits: {
       train: 0.8,
       val: 0.15,
-      test: 0.05
-    }
+      test: 0.05,
+    },
   },
   deployment: {
     cloud: {
       provider: 'vfrog',
       auto_scaling: true,
       min_replicas: 1,
-      max_replicas: 5
+      max_replicas: 5,
     },
     edge: {
       format: 'tensorrt',
-      precision: 'fp16'
-    }
+      precision: 'fp16',
+    },
   },
   agents: {
     verbose: true,
-    auto_confirm: false
-  }
+    auto_confirm: false,
+  },
 };
 
 // Default pipeline state
@@ -86,7 +86,7 @@ export const DEFAULT_STATE = {
     dataset: null,
     training: null,
     evaluation: null,
-    deployment: null
+    deployment: null,
   },
-  last_updated: new Date().toISOString()
+  last_updated: new Date().toISOString(),
 };

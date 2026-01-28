@@ -24,9 +24,9 @@ export async function validateVfrogKey(apiKey) {
     const response = await fetch('https://api.vfrog.ai/v1/auth/verify', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
     });
 
     return response.ok;
@@ -44,7 +44,7 @@ export async function setupVfrog(options = {}) {
   if (!apiKey) {
     return {
       success: false,
-      error: 'VFROG_API_KEY environment variable not set'
+      error: 'VFROG_API_KEY environment variable not set',
     };
   }
 
@@ -54,13 +54,13 @@ export async function setupVfrog(options = {}) {
   if (!isValid) {
     return {
       success: false,
-      error: 'Invalid vfrog API key'
+      error: 'Invalid vfrog API key',
     };
   }
 
   return {
     success: true,
-    apiKey: apiKey.substring(0, 8) + '...' // Masked for display
+    apiKey: apiKey.substring(0, 8) + '...', // Masked for display
   };
 }
 
@@ -78,14 +78,14 @@ export async function createVfrogProject(name, description = '') {
     const response = await fetch('https://api.vfrog.ai/v1/projects', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         name,
         description,
-        task_type: 'detection'
-      })
+        task_type: 'detection',
+      }),
     });
 
     if (!response.ok) {
@@ -114,9 +114,9 @@ export async function getVfrogProjectStatus(projectId) {
     const response = await fetch(`https://api.vfrog.ai/v1/projects/${projectId}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
@@ -146,7 +146,7 @@ export async function uploadToVfrog(projectId, imagePaths) {
     success: true,
     projectId,
     uploadedCount: imagePaths.length,
-    status: 'pending_annotation'
+    status: 'pending_annotation',
   };
 }
 
@@ -166,7 +166,7 @@ export async function downloadFromVfrog(projectId, format = 'yolo') {
     success: true,
     projectId,
     format,
-    annotationPath: `./data/annotations/${projectId}`
+    annotationPath: `./data/annotations/${projectId}`,
   };
 }
 

@@ -42,7 +42,6 @@ export async function doctorCommand(options) {
     const agentsExist = existsSync(join(CROAK_DIR, 'agents'));
     printCheck('Agent definitions', agentsExist);
     if (!agentsExist) issues.push('Missing agents directory');
-
   } else {
     printCheck('CROAK initialized', false);
     issues.push('CROAK not initialized. Run `croak init` first.');
@@ -66,7 +65,7 @@ export async function doctorCommand(options) {
       { name: 'modal', required: false },
       { name: 'mlflow', required: false },
       { name: 'pydantic', required: true },
-      { name: 'pyyaml', required: true }
+      { name: 'pyyaml', required: true },
     ];
 
     for (const pkg of packages) {
@@ -147,14 +146,14 @@ export async function doctorCommand(options) {
   } else {
     if (issues.length > 0) {
       console.log(chalk.red(`\n❌ ${issues.length} issue(s) found:\n`));
-      issues.forEach(issue => {
+      issues.forEach((issue) => {
         console.log(chalk.red(`   • ${issue}`));
       });
     }
 
     if (warnings.length > 0) {
       console.log(chalk.yellow(`\n⚠️  ${warnings.length} warning(s):\n`));
-      warnings.forEach(warning => {
+      warnings.forEach((warning) => {
         console.log(chalk.yellow(`   • ${warning}`));
       });
     }
@@ -178,7 +177,7 @@ export async function doctorCommand(options) {
  * Print a check result
  */
 function printCheck(label, passed, optional = null) {
-  const icon = passed ? chalk.green('✓') : (optional ? chalk.yellow('○') : chalk.red('✗'));
+  const icon = passed ? chalk.green('✓') : optional ? chalk.yellow('○') : chalk.red('✗');
   const suffix = optional && !passed ? chalk.dim(` (${optional})`) : '';
   console.log(`  ${icon} ${label}${suffix}`);
 }
@@ -192,7 +191,7 @@ async function checkGPU() {
   try {
     const { stdout } = await execa('nvidia-smi', [
       '--query-gpu=name,driver_version,memory.total',
-      '--format=csv,noheader,nounits'
+      '--format=csv,noheader,nounits',
     ]);
 
     const [name, driver, vram] = stdout.trim().split(', ');
@@ -203,7 +202,7 @@ async function checkGPU() {
       name: name.trim(),
       cuda: driver.trim(),
       vram: `${vramGB.toFixed(1)}GB`,
-      vramOk: vramGB >= 8
+      vramOk: vramGB >= 8,
     };
   } catch {
     return { available: false };

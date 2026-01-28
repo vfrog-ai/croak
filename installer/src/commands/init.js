@@ -29,7 +29,7 @@ export async function initCommand(options) {
       type: 'confirm',
       name: 'overwrite',
       message: chalk.yellow('CROAK already initialized in this directory. Overwrite?'),
-      initial: false
+      initial: false,
     });
 
     if (!overwrite) {
@@ -92,7 +92,6 @@ export async function initCommand(options) {
 
     // Success message
     printSuccess(config);
-
   } catch (error) {
     spinner.fail('Initialization failed');
     console.error(chalk.red(`\nError: ${error.message}`));
@@ -112,7 +111,7 @@ async function gatherConfiguration(options) {
     name: 'projectName',
     message: 'Project name:',
     initial: options.name || process.cwd().split('/').pop(),
-    validate: (value) => value.length > 0 || 'Project name is required'
+    validate: (value) => value.length > 0 || 'Project name is required',
   });
   config.project.name = projectName;
 
@@ -126,7 +125,7 @@ async function gatherConfiguration(options) {
       type: 'confirm',
       name: 'useVfrog',
       message: 'Enable vfrog.ai integration for annotation?',
-      initial: true
+      initial: true,
     });
 
     if (!useVfrog) {
@@ -140,7 +139,7 @@ async function gatherConfiguration(options) {
       type: 'confirm',
       name: 'useModal',
       message: 'Use Modal.com for cloud GPU training?',
-      initial: true
+      initial: true,
     });
 
     if (!useModal) {
@@ -158,9 +157,9 @@ async function gatherConfiguration(options) {
       { name: 'yolov8n', message: 'YOLOv8n (Fast - edge deployment)' },
       { name: 'yolov8m', message: 'YOLOv8m (Accurate - more compute)' },
       { name: 'yolov11s', message: 'YOLOv11s (Latest architecture)' },
-      { name: 'rt-detr', message: 'RT-DETR (Transformer-based)' }
+      { name: 'rt-detr', message: 'RT-DETR (Transformer-based)' },
     ],
-    initial: 0
+    initial: 0,
   });
   config.training.architecture = architecture;
 
@@ -172,9 +171,9 @@ async function gatherConfiguration(options) {
     choices: [
       { name: 'mlflow', message: 'MLflow (Local - recommended for starting)' },
       { name: 'wandb', message: 'Weights & Biases (Cloud - team collaboration)' },
-      { name: 'none', message: 'None (Not recommended)' }
+      { name: 'none', message: 'None (Not recommended)' },
     ],
-    initial: 0
+    initial: 0,
   });
   config.tracking.backend = tracking;
 
@@ -186,9 +185,9 @@ async function gatherConfiguration(options) {
     choices: [
       { name: 'beginner', message: 'Beginner (More guidance, explanations)' },
       { name: 'intermediate', message: 'Intermediate (Balanced)' },
-      { name: 'expert', message: 'Expert (Minimal prompts)' }
+      { name: 'expert', message: 'Expert (Minimal prompts)' },
     ],
-    initial: 1
+    initial: 1,
   });
 
   config.agents.verbose = skillLevel === 'beginner';
@@ -220,7 +219,7 @@ async function createDirectoryStructure(_config) {
     'evaluation',
     'evaluation/reports',
     'deployment',
-    'deployment/edge'
+    'deployment/edge',
   ];
 
   for (const dir of directories) {
@@ -247,7 +246,7 @@ function writeConfiguration(config) {
   // Write pipeline-state.yaml
   const state = {
     ...DEFAULT_STATE,
-    last_updated: new Date().toISOString()
+    last_updated: new Date().toISOString(),
   };
   const statePath = join(CROAK_DIR, 'pipeline-state.yaml');
   const stateYaml = yaml.stringify(state, { indent: 2 });
@@ -285,13 +284,15 @@ checkpoints/
  * Print success message with next steps
  */
 function printSuccess(config) {
-  console.log(chalk.green(`
+  console.log(
+    chalk.green(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
 ║   ${chalk.bold('🐸 CROAK initialized successfully!')}                      ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
-`));
+`)
+  );
 
   console.log(chalk.cyan('Project: ') + config.project.name);
   console.log(chalk.cyan('Architecture: ') + config.training.architecture);
@@ -301,9 +302,18 @@ function printSuccess(config) {
 
   console.log(chalk.yellow('Next steps:\n'));
   console.log('  1. ' + chalk.white('Add your images to') + chalk.cyan(' data/raw/'));
-  console.log('  2. ' + chalk.white('Run') + chalk.cyan(' croak scan') + chalk.white(' to discover your data'));
-  console.log('  3. ' + chalk.white('Run') + chalk.cyan(' croak prepare') + chalk.white(' to prepare your dataset'));
-  console.log('  4. ' + chalk.white('Run') + chalk.cyan(' croak train') + chalk.white(' to start training'));
+  console.log(
+    '  2. ' + chalk.white('Run') + chalk.cyan(' croak scan') + chalk.white(' to discover your data')
+  );
+  console.log(
+    '  3. ' +
+      chalk.white('Run') +
+      chalk.cyan(' croak prepare') +
+      chalk.white(' to prepare your dataset')
+  );
+  console.log(
+    '  4. ' + chalk.white('Run') + chalk.cyan(' croak train') + chalk.white(' to start training')
+  );
   console.log('');
 
   if (!config.vfrog) {

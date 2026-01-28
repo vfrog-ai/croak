@@ -80,7 +80,7 @@ export async function getPythonPackageVersion(packageName) {
     const pythonCmd = await getPythonCommand();
     const { stdout } = await execa(pythonCmd, [
       '-c',
-      `import ${packageName}; print(${packageName}.__version__)`
+      `import ${packageName}; print(${packageName}.__version__)`,
     ]);
     return stdout.trim();
   } catch {
@@ -104,7 +104,7 @@ export async function isInVirtualEnv() {
     const pythonCmd = await getPythonCommand();
     const { stdout } = await execa(pythonCmd, [
       '-c',
-      'import sys; print(sys.prefix != sys.base_prefix)'
+      'import sys; print(sys.prefix != sys.base_prefix)',
     ]);
     return stdout.trim() === 'True';
   } catch {
