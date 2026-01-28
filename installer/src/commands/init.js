@@ -5,8 +5,10 @@
 
 import chalk from 'chalk';
 import ora from 'ora';
-import { prompt } from 'enquirer';
+import Enquirer from 'enquirer';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
+
+const { prompt } = Enquirer;
 import { join } from 'path';
 import yaml from 'yaml';
 
