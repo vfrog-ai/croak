@@ -1,0 +1,92 @@
+# Model Training Workflow
+# CROAK v1.0
+
+metadata:
+  id: "croak/workflows/model-training"
+  name: "Model Training"
+  version: "1.0.0"
+  agent: "training"
+  description: "Configure, execute, and track object detection model training"
+
+triggers:
+  commands:
+    - "croak train"
+    - "croak recommend"
+    - "croak configure"
+    - "croak estimate"
+  states:
+    - "data_preparation"
+    - "training"
+
+prerequisites:
+  - workflow: "data-preparation"
+    artifact: "dataset"
+    required: true
+
+steps:
+  - id: "init"
+    name: "Initialize Training"
+    file: "steps/step-01-init.md"
+    required: true
+    outputs:
+      - "dataset_artifact"
+      - "training_context"
+
+  - id: "recommend"
+    name: "Recommend Architecture"
+    file: "steps/step-02-recommend.md"
+    required: true
+    depends_on: ["init"]
+    outputs:
+      - "architecture"
+      - "rationale"
+
+  - id: "configure"
+    name: "Configure Training"
+    file: "steps/step-03-configure.md"
+    required: true
+    depends_on: ["recommend"]
+    outputs:
+      - "training_config"
+      - "experiment_id"
+
+  - id: "environment"
+    name: "Setup Training Environment"
+    file: "steps/step-04-environment.md"
+    required: true
+    depends_on: ["configure"]
+    outputs:
+      - "compute_provider"
+      - "gpu_config"
+
+  - id: "execute"
+    name: "Execute Training"
+    file: "steps/step-05-execute.md"
+    required: true
+    depends_on: ["environment"]
+    outputs:
+      - "model_weights"
+      - "training_metrics"
+
+  - id: "handoff"
+    name: "Handoff to Evaluation"
+    file: "steps/step-06-handoff.md"
+    required: true
+    depends_on: ["execute"]
+    outputs:
+      - "handoff_artifact"
+
+completion:
+  state_update: "training"
+  next_workflow: "model-evaluation"
+  handoff_to: "evaluation"
+
+checklist:
+  - "Dataset artifact validated"
+  - "Architecture selected with rationale"
+  - "Training config generated"
+  - "GPU environment ready"
+  - "Experiment tracking configured"
+  - "Training completed successfully"
+  - "Best checkpoint saved"
+  - "Metrics logged"

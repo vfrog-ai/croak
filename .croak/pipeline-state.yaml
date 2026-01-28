@@ -1,0 +1,88 @@
+# CROAK Pipeline State
+# This file tracks the current state of the ML pipeline
+# Automatically updated by agents - do not edit manually
+
+pipeline:
+  version: "1.0"
+  initialized_at: ""
+  last_updated: ""
+
+current_stage: "uninitialized"  # uninitialized, data_preparation, training, evaluation, deployment, complete
+
+stages_completed: []
+# Possible stages:
+# - data_scan
+# - data_validation
+# - data_annotation
+# - data_split
+# - data_preparation
+# - training_config
+# - training_execution
+# - training
+# - evaluation_metrics
+# - evaluation_analysis
+# - evaluation
+# - deployment_optimization
+# - deployment_export
+# - deployment_cloud
+# - deployment_edge
+# - deployment
+
+artifacts:
+  dataset:
+    path: null
+    format: null
+    version: null
+    checksum: null
+    classes: []
+    splits:
+      train: 0
+      val: 0
+      test: 0
+    quality_report_path: null
+    vfrog_project_id: null
+
+  model:
+    path: null
+    architecture: null
+    framework: null
+    checkpoints:
+      best: null
+      last: null
+
+  evaluation:
+    report_path: null
+    metrics:
+      mAP50: null
+      mAP50_95: null
+      precision: null
+      recall: null
+    deployment_ready: false
+    recommended_threshold: null
+
+  deployment:
+    cloud:
+      endpoint_url: null
+      api_key: null
+      dashboard_url: null
+    edge:
+      model_path: null
+      format: null
+      benchmark:
+        latency_ms: null
+        throughput_fps: null
+
+experiments: []
+# Each experiment entry:
+# - id: "exp-001"
+#   status: "completed"  # running, completed, failed
+#   started: "2026-01-15T14:00:00Z"
+#   completed: "2026-01-15T18:00:00Z"
+#   architecture: "yolov8s"
+#   metrics:
+#     mAP50: 0.75
+#     mAP50_95: 0.52
+#   model_path: "./training/experiments/exp-001/weights/best.pt"
+
+warnings: []
+errors: []

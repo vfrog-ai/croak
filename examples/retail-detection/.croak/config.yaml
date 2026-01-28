@@ -1,0 +1,59 @@
+# CROAK Configuration - Retail Product Detection Example
+# This file is created by `croak init` and customized per project
+
+version: "1.0"
+
+project:
+  name: "retail-product-detection"
+  task_type: "detection"
+  created_at: "2026-01-28T00:00:00Z"
+
+# vfrog.ai integration (required for annotation)
+vfrog:
+  api_key_env: "VFROG_API_KEY"
+  project_id: ""
+
+# Compute configuration
+compute:
+  provider: "modal"
+  gpu_type: "T4"
+  timeout_hours: 4
+
+# Training defaults
+training:
+  framework: "ultralytics"
+  architecture: "yolov8s"
+  epochs: 100
+  batch_size: 16
+  image_size: 640
+  patience: 20
+
+# Experiment tracking
+tracking:
+  backend: "mlflow"
+  mlflow:
+    tracking_uri: "./mlruns"
+
+# Data configuration
+data:
+  format: "yolo"
+  splits:
+    train: 0.8
+    val: 0.15
+    test: 0.05
+
+# Deployment configuration
+deployment:
+  cloud:
+    provider: "vfrog"
+    auto_scaling: true
+    min_replicas: 1
+    max_replicas: 5
+  edge:
+    format: "tensorrt"
+    precision: "fp16"
+
+# Agent behavior
+agents:
+  verbose: true
+  auto_confirm: false
