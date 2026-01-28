@@ -2,8 +2,6 @@
  * vfrog.ai configuration utilities
  */
 
-import { execa } from 'execa';
-
 /**
  * Check if vfrog API key is set
  */

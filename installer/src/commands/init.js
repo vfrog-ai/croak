@@ -14,7 +14,7 @@ import yaml from 'yaml';
 
 import { checkPython, getPythonVersion } from '../utils/python-check.js';
 import { copyTemplates } from '../utils/template-copy.js';
-import { setupVfrog, checkVfrogKey } from '../utils/vfrog-setup.js';
+import { checkVfrogKey } from '../utils/vfrog-setup.js';
 import { DEFAULT_CONFIG, DEFAULT_STATE, CROAK_DIR } from '../index.js';
 
 /**
@@ -200,7 +200,7 @@ async function gatherConfiguration(options) {
 /**
  * Create the directory structure
  */
-async function createDirectoryStructure(config) {
+async function createDirectoryStructure(_config) {
   const directories = [
     CROAK_DIR,
     join(CROAK_DIR, 'agents'),
