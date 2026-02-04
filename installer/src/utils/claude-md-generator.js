@@ -4,16 +4,16 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Template path for CLAUDE.md
  */
-const TEMPLATE_PATH = join(
-  import.meta.url.replace('file://', '').replace(/\/src\/utils\/claude-md-generator\.js$/, ''),
-  'templates',
-  'CLAUDE.md.tmpl'
-);
+const TEMPLATE_PATH = join(__dirname, '..', '..', 'templates', 'CLAUDE.md.tmpl');
 
 /**
  * Simple template rendering (replaces {{variable}} placeholders)

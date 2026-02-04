@@ -6,8 +6,8 @@ import tempfile
 import os
 
 from croak.core.secrets import SecretsManager
-from croak.core.paths import PathValidator, PathSecurityError
-from croak.core.commands import SecureRunner, CommandSecurityError
+from croak.core.paths import PathValidator, PathValidationError
+from croak.core.commands import SecureRunner, CommandNotAllowedError
 
 
 class TestSecretsManager:
@@ -85,7 +85,7 @@ class TestPathValidator:
             # Try to escape with ..
             malicious_path = Path(tmpdir) / ".." / ".." / "etc" / "passwd"
 
-            with pytest.raises(PathSecurityError):
+            with pytest.raises(PathValidationError):
                 validator.validate_within_project(malicious_path)
 
     def test_validate_image_valid(self):
@@ -108,7 +108,7 @@ class TestPathValidator:
             text_path = Path(tmpdir) / "test.txt"
             text_path.write_text("not an image")
 
-            with pytest.raises(PathSecurityError):
+            with pytest.raises(PathValidationError):
                 validator.validate_image(text_path)
 
     def test_validate_data_yaml(self):
@@ -133,12 +133,12 @@ class TestSecureRunner:
 
     def test_run_blocked_command(self):
         """Test blocking disallowed commands."""
-        with pytest.raises(CommandSecurityError):
+        with pytest.raises(CommandNotAllowedError):
             SecureRunner.run(["rm", "-rf", "/"])
 
     def test_run_blocked_subcommand(self):
         """Test blocking disallowed subcommands."""
-        with pytest.raises(CommandSecurityError):
+        with pytest.raises(CommandNotAllowedError):
             SecureRunner.run(["git", "push", "--force"])
 
     def test_run_with_timeout(self):

@@ -10,7 +10,8 @@ import { join } from 'path';
 
 import { checkPython, getPythonVersion, checkPythonPackage } from '../utils/python-check.js';
 import { checkVfrogKey } from '../utils/vfrog-setup.js';
-import { detectIDEs, getIDEConfig } from '../utils/ide-setup.js';
+// IDE detection functions available for future use
+// import { detectIDEs, getIDEConfig } from '../utils/ide-setup.js';
 import { checkCompiledAgents } from '../utils/agent-compiler.js';
 import { CROAK_DIR } from '../index.js';
 
@@ -295,27 +296,30 @@ async function checkIDEIntegration() {
   };
 
   // Check Claude Code
-  const claudeCommandsDir = '.claude/commands/croak';
+  // Commands are now directly in .claude/commands/ with croak- prefix
+  const claudeCommandsDir = '.claude/commands';
 
   if (existsSync('.claude')) {
     result.claudeCode.detected = true;
 
     if (existsSync(claudeCommandsDir)) {
-      result.claudeCode.commandsExist = true;
+      const commandFiles = readdirSync(claudeCommandsDir).filter((f) =>
+        f.startsWith('croak-') && f.endsWith('.md')
+      );
 
-      // Count agents
-      const agentsDir = join(claudeCommandsDir, 'agents');
-      if (existsSync(agentsDir)) {
-        result.claudeCode.agentCount = readdirSync(agentsDir).filter((f) =>
-          f.endsWith('.md')
+      if (commandFiles.length > 0) {
+        result.claudeCode.commandsExist = true;
+
+        // Count agents (croak-router, croak-data, etc.)
+        const agentCommands = ['router', 'data', 'training', 'evaluation', 'deployment'];
+        result.claudeCode.agentCount = commandFiles.filter((f) =>
+          agentCommands.some((agent) => f === `croak-${agent}.md`)
         ).length;
-      }
 
-      // Count workflows
-      const workflowsDir = join(claudeCommandsDir, 'workflows');
-      if (existsSync(workflowsDir)) {
-        result.claudeCode.workflowCount = readdirSync(workflowsDir).filter((f) =>
-          f.endsWith('.md')
+        // Count workflows (croak-data-preparation, croak-model-training, etc.)
+        result.claudeCode.workflowCount = commandFiles.filter((f) =>
+          f.includes('-preparation') || f.includes('-training') ||
+          f.includes('-evaluation') || f.includes('-deployment')
         ).length;
       }
     }

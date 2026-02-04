@@ -4,33 +4,31 @@
  */
 
 import { existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 
 /**
  * Supported IDE configurations
+ * Note: Claude Code discovers commands directly in .claude/commands/ (not subdirectories)
+ * Command files are named with full command name: croak-router.md, croak-data.md, etc.
  */
 export const IDE_CONFIGS = {
   'claude-code': {
     name: 'Claude Code',
-    commandDir: '.claude/commands/croak',
-    agentDir: 'agents',
-    workflowDir: 'workflows',
+    commandDir: '.claude/commands',
+    commandPrefix: 'croak-',
     projectFile: 'CLAUDE.md',
     enabled: true,
   },
   cursor: {
     name: 'Cursor',
-    commandDir: '.cursor/commands/croak',
-    agentDir: 'agents',
-    workflowDir: 'workflows',
+    commandDir: '.cursor/commands',
+    commandPrefix: 'croak-',
     projectFile: null,
     enabled: false, // Future support
   },
   codex: {
     name: 'Codex',
-    commandDir: '.codex/commands/croak',
-    agentDir: 'agents',
-    workflowDir: 'workflows',
+    commandDir: '.codex/commands',
+    commandPrefix: 'croak-',
     projectFile: null,
     enabled: false, // Future support
   },
@@ -97,15 +95,11 @@ export function createIDEDirectories(ideKey) {
 
   const paths = {
     base: config.commandDir,
-    agents: join(config.commandDir, config.agentDir),
-    workflows: join(config.commandDir, config.workflowDir),
   };
 
-  // Create directories
-  for (const [key, path] of Object.entries(paths)) {
-    if (!existsSync(path)) {
-      mkdirSync(path, { recursive: true });
-    }
+  // Create command directory
+  if (!existsSync(config.commandDir)) {
+    mkdirSync(config.commandDir, { recursive: true });
   }
 
   return paths;

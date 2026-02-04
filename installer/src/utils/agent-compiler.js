@@ -5,7 +5,7 @@
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import yaml from 'yaml';
 import { CROAK_DIR } from '../index.js';
 

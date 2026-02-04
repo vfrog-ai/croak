@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 
 import { CROAK_DIR } from '../index.js';
 import { generateAllCommands } from '../utils/command-generator.js';
-import { generateClaudeMd, hasCroakSection } from '../utils/claude-md-generator.js';
+import { generateClaudeMd } from '../utils/claude-md-generator.js';
 import { compileAllAgents } from '../utils/agent-compiler.js';
 import { detectIDEs } from '../utils/ide-setup.js';
 
@@ -178,7 +178,6 @@ async function updateProjectFiles() {
  */
 async function regenerateIDECommands() {
   const ora = (await import('ora')).default;
-  const chalk = (await import('chalk')).default;
 
   // Detect installed IDEs
   const installedIDEs = detectIDEs();

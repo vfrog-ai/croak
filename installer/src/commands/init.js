@@ -15,7 +15,7 @@ import yaml from 'yaml';
 import { checkPython, getPythonVersion } from '../utils/python-check.js';
 import { copyTemplates } from '../utils/template-copy.js';
 import { checkVfrogKey } from '../utils/vfrog-setup.js';
-import { getIDEChoices, createIDEDirectories, getIDEConfig } from '../utils/ide-setup.js';
+import { getIDEChoices, getIDEConfig } from '../utils/ide-setup.js';
 import { generateAllCommands } from '../utils/command-generator.js';
 import { generateClaudeMd } from '../utils/claude-md-generator.js';
 import { DEFAULT_CONFIG, DEFAULT_STATE, CROAK_DIR } from '../index.js';

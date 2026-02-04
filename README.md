@@ -136,8 +136,7 @@ Claude: 📊 Scout reporting for duty! I'll help you prepare your dataset.
 ### How It Works
 
 When you run `croak init`, CROAK creates:
-- `.claude/commands/croak/agents/` - Slash command files for each agent
-- `.claude/commands/croak/workflows/` - Slash command files for each workflow
+- `.claude/commands/croak-*.md` - Slash command files (e.g., croak-router.md, croak-data.md)
 - `CLAUDE.md` - Project context file that Claude Code reads automatically
 
 Claude Code discovers these files and makes them available as slash commands. Each command activates a specialized AI persona with domain expertise.
@@ -188,9 +187,10 @@ After running `croak init`, your project will have:
 your-project/
 ├── .claude/                   # Claude Code integration
 │   └── commands/
-│       └── croak/
-│           ├── agents/        # Agent slash commands (/croak-data, etc.)
-│           └── workflows/     # Workflow slash commands
+│       ├── croak-router.md    # /croak-router command
+│       ├── croak-data.md      # /croak-data command
+│       ├── croak-training.md  # /croak-training command
+│       └── ...                # Other slash commands
 ├── .croak/                    # CROAK configuration
 │   ├── config.yaml           # Project configuration
 │   ├── pipeline-state.yaml   # Pipeline progress tracking

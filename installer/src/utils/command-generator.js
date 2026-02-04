@@ -4,20 +4,20 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
-import { join, basename } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import yaml from 'yaml';
 
 import { getIDEConfig, createIDEDirectories } from './ide-setup.js';
 import { CROAK_DIR } from '../index.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * Template directory path
  */
-const TEMPLATE_DIR = join(
-  import.meta.url.replace('file://', '').replace(/\/src\/utils\/command-generator\.js$/, ''),
-  'templates',
-  'claude-code'
-);
+const TEMPLATE_DIR = join(__dirname, '..', '..', 'templates', 'claude-code');
 
 /**
  * Load and parse a YAML file
@@ -130,9 +130,10 @@ function extractWorkflowMetadata(workflowDef) {
  * Generate agent slash command file
  * @param {string} agentPath - Path to agent YAML file
  * @param {string} outputDir - Output directory for command file
+ * @param {string} prefix - Command name prefix (e.g., 'croak-')
  * @returns {string} Path to generated command file
  */
-export function generateAgentCommand(agentPath, outputDir) {
+export function generateAgentCommand(agentPath, outputDir, prefix = 'croak-') {
   // Load agent definition
   const agentDef = loadYaml(agentPath);
   const metadata = extractAgentMetadata(agentDef);
@@ -144,8 +145,8 @@ export function generateAgentCommand(agentPath, outputDir) {
   // Render template
   const rendered = renderTemplate(template, metadata);
 
-  // Write output file
-  const outputPath = join(outputDir, `${metadata.agent_id}.md`);
+  // Write output file with full command name (e.g., croak-router.md)
+  const outputPath = join(outputDir, `${prefix}${metadata.agent_id}.md`);
   writeFileSync(outputPath, rendered);
 
   return outputPath;
@@ -155,9 +156,10 @@ export function generateAgentCommand(agentPath, outputDir) {
  * Generate workflow slash command file
  * @param {string} workflowDir - Path to workflow directory
  * @param {string} outputDir - Output directory for command file
+ * @param {string} prefix - Command name prefix (e.g., 'croak-')
  * @returns {string} Path to generated command file
  */
-export function generateWorkflowCommand(workflowDir, outputDir) {
+export function generateWorkflowCommand(workflowDir, outputDir, prefix = 'croak-') {
   // Load workflow definition
   const workflowPath = join(workflowDir, 'workflow.yaml');
   const workflowDef = loadYaml(workflowPath);
@@ -170,8 +172,8 @@ export function generateWorkflowCommand(workflowDir, outputDir) {
   // Render template
   const rendered = renderTemplate(template, metadata);
 
-  // Write output file
-  const outputPath = join(outputDir, `${metadata.workflow_id}.md`);
+  // Write output file with full command name (e.g., croak-data-preparation.md)
+  const outputPath = join(outputDir, `${prefix}${metadata.workflow_id}.md`);
   writeFileSync(outputPath, rendered);
 
   return outputPath;
@@ -185,6 +187,8 @@ export function generateWorkflowCommand(workflowDir, outputDir) {
  */
 export function generateAllAgentCommands(ideKey, options = {}) {
   const paths = createIDEDirectories(ideKey);
+  const config = getIDEConfig(ideKey);
+  const prefix = config.commandPrefix || 'croak-';
   const agentsDir = join(CROAK_DIR, 'agents');
   const generated = [];
 
@@ -201,7 +205,7 @@ export function generateAllAgentCommands(ideKey, options = {}) {
     }
 
     try {
-      const outputPath = generateAgentCommand(join(agentsDir, file), paths.agents);
+      const outputPath = generateAgentCommand(join(agentsDir, file), paths.base, prefix);
       generated.push(outputPath);
     } catch (error) {
       console.warn(`Warning: Failed to generate command for ${file}: ${error.message}`);
@@ -217,8 +221,10 @@ export function generateAllAgentCommands(ideKey, options = {}) {
  * @param {Object} options - Generation options
  * @returns {Array} Array of generated file paths
  */
-export function generateAllWorkflowCommands(ideKey, options = {}) {
+export function generateAllWorkflowCommands(ideKey, _options = {}) {
   const paths = createIDEDirectories(ideKey);
+  const config = getIDEConfig(ideKey);
+  const prefix = config.commandPrefix || 'croak-';
   const workflowsDir = join(CROAK_DIR, 'workflows');
   const generated = [];
 
@@ -239,7 +245,7 @@ export function generateAllWorkflowCommands(ideKey, options = {}) {
 
   for (const dir of workflowDirs) {
     try {
-      const outputPath = generateWorkflowCommand(join(workflowsDir, dir), paths.workflows);
+      const outputPath = generateWorkflowCommand(join(workflowsDir, dir), paths.base, prefix);
       generated.push(outputPath);
     } catch (error) {
       console.warn(`Warning: Failed to generate command for workflow ${dir}: ${error.message}`);

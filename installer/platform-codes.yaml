@@ -5,10 +5,10 @@ platforms:
   claude-code:
     name: "Claude Code"
     enabled: true
-    command_directory: ".claude/commands/croak"
-    subdirectories:
-      agents: "agents"
-      workflows: "workflows"
+    command_directory: ".claude/commands"
+    command_prefix: "croak-"
+    # Commands are placed directly in command_directory with prefix
+    # e.g., .claude/commands/croak-router.md, .claude/commands/croak-data-preparation.md
     project_context_file: "CLAUDE.md"
     template_type: "markdown"
     features:
@@ -19,10 +19,8 @@ platforms:
   cursor:
     name: "Cursor"
     enabled: false  # Future support
-    command_directory: ".cursor/commands/croak"
-    subdirectories:
-      agents: "agents"
-      workflows: "workflows"
+    command_directory: ".cursor/commands"
+    command_prefix: "croak-"
     project_context_file: null
     template_type: "markdown"
     features:
@@ -31,10 +29,8 @@ platforms:
   codex:
     name: "Codex"
     enabled: false  # Future support
-    command_directory: ".codex/commands/croak"
-    subdirectories:
-      agents: "agents"
-      workflows: "workflows"
+    command_directory: ".codex/commands"
+    command_prefix: "croak-"
     project_context_file: null
     template_type: "markdown"
     features:
