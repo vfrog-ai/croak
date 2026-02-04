@@ -1,0 +1,98 @@
+# Model Evaluation Workflow
+# CROAK v1.0
+
+metadata:
+  id: "croak/workflows/model-evaluation"
+  name: "Model Evaluation"
+  version: "1.0.0"
+  agent: "evaluation"
+  description: "Comprehensive model evaluation with actionable insights"
+
+triggers:
+  commands:
+    - "croak evaluate"
+    - "croak analyze"
+    - "croak diagnose"
+    - "croak threshold"
+    - "croak report"
+  states:
+    - "training"
+    - "evaluation"
+
+prerequisites:
+  - workflow: "model-training"
+    artifact: "model"
+    required: true
+
+steps:
+  - id: "init"
+    name: "Initialize Evaluation"
+    file: "steps/step-01-init.md"
+    required: true
+    outputs:
+      - "model_artifact"
+      - "test_dataset"
+
+  - id: "compute"
+    name: "Compute Metrics"
+    file: "steps/step-02-compute.md"
+    required: true
+    depends_on: ["init"]
+    outputs:
+      - "aggregate_metrics"
+      - "per_class_metrics"
+
+  - id: "analyze"
+    name: "Analyze Performance"
+    file: "steps/step-03-analyze.md"
+    required: true
+    depends_on: ["compute"]
+    outputs:
+      - "slice_analysis"
+      - "error_patterns"
+
+  - id: "diagnose"
+    name: "Diagnose Issues"
+    file: "steps/step-04-diagnose.md"
+    required: false
+    depends_on: ["analyze"]
+    skip_if: "no_issues_detected"
+    outputs:
+      - "diagnosis"
+      - "recommendations"
+
+  - id: "visualize"
+    name: "Generate Visualizations"
+    file: "steps/step-05-visualize.md"
+    required: true
+    depends_on: ["analyze"]
+    outputs:
+      - "confusion_matrix"
+      - "pr_curves"
+      - "sample_predictions"
+
+  - id: "report"
+    name: "Generate Report"
+    file: "steps/step-06-report.md"
+    required: true
+    depends_on: ["visualize"]
+    outputs:
+      - "evaluation_report"
+      - "deployment_recommendation"
+      - "handoff_artifact"
+
+completion:
+  state_update: "evaluation"
+  next_workflow: "model-deployment"
+  handoff_to: "deployment"
+
+checklist:
+  - "Model loads correctly"
+  - "Test set evaluation complete"
+  - "Per-class metrics computed"
+  - "Size-based analysis complete"
+  - "Error patterns identified"
+  - "Threshold analysis complete"
+  - "Visualizations generated"
+  - "Deployment recommendation made"
+  - "Report generated"

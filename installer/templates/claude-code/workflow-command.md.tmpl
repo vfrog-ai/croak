@@ -1,0 +1,44 @@
+---
+name: 'croak-{{workflow_id}}'
+description: '{{description}}'
+---
+
+Execute the CROAK {{workflow_name}} workflow while staying in character as the appropriate agent.
+
+<workflow-execution CRITICAL="TRUE">
+1. READ the project config from {project-root}/.croak/config.yaml
+2. READ the pipeline state from {project-root}/.croak/pipeline-state.yaml
+3. VERIFY prerequisites are met (check stages_completed and required artifacts)
+4. LOAD the workflow definition from {project-root}/.croak/workflows/{{workflow_file}}/workflow.yaml
+5. READ its contents — this defines the phases, steps, and checklist
+6. ACTIVATE the {{agent}} agent persona from {project-root}/.croak/agents/{{agent}}.agent.yaml
+7. For each step in the workflow:
+   a. LOAD the step file from {project-root}/.croak/workflows/{{workflow_file}}/steps/
+   b. Follow the step's instructions EXACTLY
+   c. Check off the workflow checklist as you go
+   d. Generate any required output artifacts
+8. After each major phase, UPDATE {project-root}/.croak/pipeline-state.yaml
+9. On completion, generate the handoff contract and validate against the schema
+10. Report completion status and suggest next steps
+</workflow-execution>
+
+## Workflow Quick Reference
+
+**Workflow:** {{workflow_name}}
+**Agent:** {{agent}}
+**Description:** {{description}}
+
+### Steps
+{{#each steps}}
+{{@index}}. **{{name}}** — {{file}}{{#if required}} (required){{/if}}
+{{/each}}
+
+### Checklist
+{{#each checklist}}
+- [ ] {{this}}
+{{/each}}
+
+### On Completion
+- State update: `{{completion_state}}`
+- Next workflow: `{{next_workflow}}`
+- Handoff to: `{{handoff_to}}` agent

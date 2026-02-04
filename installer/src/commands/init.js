@@ -15,7 +15,43 @@ import yaml from 'yaml';
 import { checkPython, getPythonVersion } from '../utils/python-check.js';
 import { copyTemplates } from '../utils/template-copy.js';
 import { checkVfrogKey } from '../utils/vfrog-setup.js';
+import { getIDEChoices, createIDEDirectories, getIDEConfig } from '../utils/ide-setup.js';
+import { generateAllCommands } from '../utils/command-generator.js';
+import { generateClaudeMd } from '../utils/claude-md-generator.js';
 import { DEFAULT_CONFIG, DEFAULT_STATE, CROAK_DIR } from '../index.js';
+
+/**
+ * Available agent modules for selection
+ */
+const AGENT_MODULES = [
+  {
+    name: 'router',
+    message: 'Router (Pipeline Coordinator) — always included',
+    value: 'router',
+    disabled: true,
+    hint: 'Required',
+  },
+  {
+    name: 'data',
+    message: 'Data Agent (Scout) — scanning, validation, preparation',
+    value: 'data',
+  },
+  {
+    name: 'training',
+    message: 'Training Agent (Coach) — model training, experiments',
+    value: 'training',
+  },
+  {
+    name: 'evaluation',
+    message: 'Evaluation Agent (Judge) — model evaluation, analysis',
+    value: 'evaluation',
+  },
+  {
+    name: 'deployment',
+    message: 'Deployment Agent (Shipper) — export, deployment',
+    value: 'deployment',
+  },
+];
 
 /**
  * Initialize CROAK in the current directory
@@ -40,9 +76,14 @@ export async function initCommand(options) {
 
   // Gather configuration
   let config = { ...DEFAULT_CONFIG };
+  let ideSelection = ['claude-code']; // Default to Claude Code
+  let agentSelection = ['router', 'data', 'training', 'evaluation', 'deployment']; // All agents
 
   if (!options.yes) {
-    config = await gatherConfiguration(options);
+    const result = await gatherConfiguration(options);
+    config = result.config;
+    ideSelection = result.ideSelection;
+    agentSelection = result.agentSelection;
   } else {
     // Use defaults with any provided options
     if (options.name) {
@@ -69,6 +110,30 @@ export async function initCommand(options) {
     writeConfiguration(config);
     spinner.succeed('Configuration written');
 
+    // Generate IDE commands (NEW STEP)
+    for (const ide of ideSelection) {
+      spinner.start(`Generating ${getIDEConfig(ide).name} commands...`);
+      try {
+        const result = generateAllCommands(ide, { selectedAgents: agentSelection });
+        spinner.succeed(
+          `${getIDEConfig(ide).name} commands generated (${result.agents.length} agents, ${result.workflows.length} workflows)`
+        );
+      } catch (error) {
+        spinner.warn(`${getIDEConfig(ide).name} command generation had issues: ${error.message}`);
+      }
+    }
+
+    // Generate CLAUDE.md (NEW STEP)
+    if (ideSelection.includes('claude-code')) {
+      spinner.start('Generating CLAUDE.md project context...');
+      try {
+        generateClaudeMd(config, { overwrite: true });
+        spinner.succeed('CLAUDE.md generated');
+      } catch (error) {
+        spinner.warn(`CLAUDE.md generation had issues: ${error.message}`);
+      }
+    }
+
     // Setup vfrog if enabled
     if (options.vfrog !== false && config.vfrog?.api_key_env) {
       spinner.start('Checking vfrog.ai integration...');
@@ -91,7 +156,7 @@ export async function initCommand(options) {
     }
 
     // Success message
-    printSuccess(config);
+    printSuccess(config, ideSelection, agentSelection);
   } catch (error) {
     spinner.fail('Initialization failed');
     console.error(chalk.red(`\nError: ${error.message}`));
@@ -193,7 +258,45 @@ async function gatherConfiguration(options) {
   config.agents.verbose = skillLevel === 'beginner';
   config.agents.auto_confirm = skillLevel === 'expert';
 
-  return config;
+  // IDE Selection (NEW STEP)
+  console.log('');
+  const ideChoices = getIDEChoices();
+  let ideSelection = ['claude-code']; // Default
+
+  if (ideChoices.length > 0) {
+    const { selectedIDEs } = await prompt({
+      type: 'multiselect',
+      name: 'selectedIDEs',
+      message: 'Which AI coding tools do you use?',
+      choices: ideChoices.map((ide) => ({
+        name: ide.value,
+        message: ide.message,
+        value: ide.value,
+      })),
+      initial: ['claude-code'],
+      hint: 'Space to select, Enter to confirm',
+    });
+
+    if (selectedIDEs && selectedIDEs.length > 0) {
+      ideSelection = selectedIDEs;
+    }
+  }
+
+  // Module/Agent Selection (NEW STEP)
+  console.log('');
+  const { selectedAgents } = await prompt({
+    type: 'multiselect',
+    name: 'selectedAgents',
+    message: 'Which CROAK agents do you want to enable?',
+    choices: AGENT_MODULES,
+    initial: ['data', 'training', 'evaluation', 'deployment'],
+    hint: 'Space to select, Enter to confirm',
+  });
+
+  // Always include router
+  const agentSelection = ['router', ...(selectedAgents || [])];
+
+  return { config, ideSelection, agentSelection };
 }
 
 /**
@@ -283,7 +386,7 @@ checkpoints/
 /**
  * Print success message with next steps
  */
-function printSuccess(config) {
+function printSuccess(config, ideSelection = [], agentSelection = []) {
   console.log(
     chalk.green(`
 ╔════════════════════════════════════════════════════════════╗
@@ -300,6 +403,32 @@ function printSuccess(config) {
   console.log(chalk.cyan('Tracking: ') + config.tracking.backend);
   console.log('');
 
+  // Show IDE integration info (NEW)
+  if (ideSelection.includes('claude-code')) {
+    console.log(chalk.green('✓ Claude Code integration enabled'));
+    console.log('');
+    console.log(chalk.yellow('Slash commands available:\n'));
+    console.log(chalk.cyan('  Agents:'));
+    if (agentSelection.includes('router'))
+      console.log('    /croak-router      ' + chalk.dim('Pipeline coordinator'));
+    if (agentSelection.includes('data'))
+      console.log('    /croak-data        ' + chalk.dim('Data quality specialist'));
+    if (agentSelection.includes('training'))
+      console.log('    /croak-training    ' + chalk.dim('Training configuration'));
+    if (agentSelection.includes('evaluation'))
+      console.log('    /croak-evaluation  ' + chalk.dim('Model evaluation'));
+    if (agentSelection.includes('deployment'))
+      console.log('    /croak-deployment  ' + chalk.dim('Deployment & export'));
+
+    console.log('');
+    console.log(chalk.cyan('  Workflows:'));
+    console.log('    /croak-data-preparation   ' + chalk.dim('Full data pipeline'));
+    console.log('    /croak-model-training     ' + chalk.dim('Training pipeline'));
+    console.log('    /croak-model-evaluation   ' + chalk.dim('Evaluation pipeline'));
+    console.log('    /croak-model-deployment   ' + chalk.dim('Deployment pipeline'));
+    console.log('');
+  }
+
   console.log(chalk.yellow('Next steps:\n'));
   console.log('  1. ' + chalk.white('Add your images to') + chalk.cyan(' data/raw/'));
   console.log(
@@ -315,6 +444,13 @@ function printSuccess(config) {
     '  4. ' + chalk.white('Run') + chalk.cyan(' croak train') + chalk.white(' to start training')
   );
   console.log('');
+
+  if (ideSelection.includes('claude-code')) {
+    console.log(
+      chalk.dim('  Tip: Open Claude Code and type /croak-router to get started with guidance!')
+    );
+    console.log('');
+  }
 
   if (!config.vfrog) {
     console.log(chalk.dim('  Note: vfrog.ai integration disabled. Enable with VFROG_API_KEY.'));

@@ -11,6 +11,10 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { CROAK_DIR } from '../index.js';
+import { generateAllCommands } from '../utils/command-generator.js';
+import { generateClaudeMd, hasCroakSection } from '../utils/claude-md-generator.js';
+import { compileAllAgents } from '../utils/agent-compiler.js';
+import { detectIDEs } from '../utils/ide-setup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -145,14 +149,13 @@ async function performUpgrade(latestVersion) {
  */
 async function updateProjectFiles() {
   const { copyTemplates } = await import('../utils/template-copy.js');
+  const { cpSync, rmSync } = await import('fs');
 
   // Backup existing agents
   const agentsDir = join(CROAK_DIR, 'agents');
   const backupDir = join(CROAK_DIR, 'agents.backup');
 
   if (existsSync(agentsDir)) {
-    const { cpSync, rmSync } = await import('fs');
-
     // Create backup
     if (existsSync(backupDir)) {
       rmSync(backupDir, { recursive: true });
@@ -162,4 +165,72 @@ async function updateProjectFiles() {
 
   // Copy new templates (this would update agents, workflows, etc.)
   await copyTemplates(CROAK_DIR);
+
+  // Regenerate IDE commands
+  await regenerateIDECommands();
+
+  // Recompile agents
+  await recompileAgents();
+}
+
+/**
+ * Regenerate IDE slash commands after upgrade
+ */
+async function regenerateIDECommands() {
+  const ora = (await import('ora')).default;
+  const chalk = (await import('chalk')).default;
+
+  // Detect installed IDEs
+  const installedIDEs = detectIDEs();
+
+  for (const ide of installedIDEs) {
+    const spinner = ora(`Regenerating ${ide} commands...`).start();
+
+    try {
+      const result = generateAllCommands(ide, {});
+      spinner.succeed(
+        `${ide} commands regenerated (${result.agents.length} agents, ${result.workflows.length} workflows)`
+      );
+    } catch (error) {
+      spinner.warn(`Failed to regenerate ${ide} commands: ${error.message}`);
+    }
+  }
+
+  // Update CLAUDE.md if it exists or Claude Code is detected
+  if (installedIDEs.includes('claude-code') || existsSync('CLAUDE.md')) {
+    const spinner = ora('Updating CLAUDE.md...').start();
+
+    try {
+      // Read existing config
+      const configPath = join(CROAK_DIR, 'config.yaml');
+      if (existsSync(configPath)) {
+        const yaml = (await import('yaml')).default;
+        const configContent = readFileSync(configPath, 'utf8');
+        const config = yaml.parse(configContent);
+
+        generateClaudeMd(config, { overwrite: false, updateOnly: true });
+        spinner.succeed('CLAUDE.md updated');
+      } else {
+        spinner.warn('Could not update CLAUDE.md - config.yaml not found');
+      }
+    } catch (error) {
+      spinner.warn(`Failed to update CLAUDE.md: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Recompile agents after upgrade
+ */
+async function recompileAgents() {
+  const ora = (await import('ora')).default;
+
+  const spinner = ora('Compiling agent definitions...').start();
+
+  try {
+    const result = compileAllAgents({ verbose: false });
+    spinner.succeed(`Compiled ${result.count} agents`);
+  } catch (error) {
+    spinner.warn(`Agent compilation skipped: ${error.message}`);
+  }
 }

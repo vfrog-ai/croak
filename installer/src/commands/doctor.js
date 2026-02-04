@@ -10,6 +10,8 @@ import { join } from 'path';
 
 import { checkPython, getPythonVersion, checkPythonPackage } from '../utils/python-check.js';
 import { checkVfrogKey } from '../utils/vfrog-setup.js';
+import { detectIDEs, getIDEConfig } from '../utils/ide-setup.js';
+import { checkCompiledAgents } from '../utils/agent-compiler.js';
 import { CROAK_DIR } from '../index.js';
 
 /**
@@ -137,6 +139,45 @@ export async function doctorCommand(options) {
 
   console.log('');
 
+  // Check IDE Integration (NEW)
+  console.log(chalk.bold('IDE Integration'));
+  console.log(chalk.dim('─'.repeat(40)));
+
+  const ideChecks = await checkIDEIntegration();
+
+  // Claude Code
+  if (ideChecks.claudeCode.detected) {
+    printCheck('Claude Code commands', ideChecks.claudeCode.commandsExist);
+    if (ideChecks.claudeCode.commandsExist) {
+      console.log(chalk.dim(`    ${ideChecks.claudeCode.agentCount} agents, ${ideChecks.claudeCode.workflowCount} workflows`));
+    }
+    if (!ideChecks.claudeCode.commandsExist) {
+      warnings.push('Claude Code detected but commands not generated. Run `croak upgrade` to fix.');
+    }
+
+    printCheck('CLAUDE.md project context', ideChecks.claudeCode.claudeMdExists);
+    if (!ideChecks.claudeCode.claudeMdExists) {
+      warnings.push('CLAUDE.md not found. Run `croak upgrade` to generate.');
+    }
+  } else {
+    printCheck('Claude Code', false, 'optional');
+    console.log(chalk.dim('    No .claude/commands directory found'));
+  }
+
+  // Compiled agents
+  const compiledStatus = checkCompiledAgents();
+  if (compiledStatus.exists) {
+    printCheck(`Compiled agents (${compiledStatus.count})`, !compiledStatus.needsUpdate);
+    if (compiledStatus.needsUpdate) {
+      warnings.push('Compiled agents out of date. Run `croak upgrade` to recompile.');
+    }
+  } else {
+    printCheck('Compiled agents', false, 'optional');
+    console.log(chalk.dim('    Run `croak upgrade` to compile agents for better reliability'));
+  }
+
+  console.log('');
+
   // Summary
   console.log(chalk.bold('Summary'));
   console.log(chalk.dim('─'.repeat(40)));
@@ -235,6 +276,55 @@ async function checkGit() {
   } catch {
     return false;
   }
+}
+
+/**
+ * Check IDE integration status
+ */
+async function checkIDEIntegration() {
+  const { readdirSync } = await import('fs');
+
+  const result = {
+    claudeCode: {
+      detected: false,
+      commandsExist: false,
+      agentCount: 0,
+      workflowCount: 0,
+      claudeMdExists: false,
+    },
+  };
+
+  // Check Claude Code
+  const claudeCommandsDir = '.claude/commands/croak';
+
+  if (existsSync('.claude')) {
+    result.claudeCode.detected = true;
+
+    if (existsSync(claudeCommandsDir)) {
+      result.claudeCode.commandsExist = true;
+
+      // Count agents
+      const agentsDir = join(claudeCommandsDir, 'agents');
+      if (existsSync(agentsDir)) {
+        result.claudeCode.agentCount = readdirSync(agentsDir).filter((f) =>
+          f.endsWith('.md')
+        ).length;
+      }
+
+      // Count workflows
+      const workflowsDir = join(claudeCommandsDir, 'workflows');
+      if (existsSync(workflowsDir)) {
+        result.claudeCode.workflowCount = readdirSync(workflowsDir).filter((f) =>
+          f.endsWith('.md')
+        ).length;
+      }
+    }
+  }
+
+  // Check CLAUDE.md
+  result.claudeCode.claudeMdExists = existsSync('CLAUDE.md');
+
+  return result;
 }
 
 /**

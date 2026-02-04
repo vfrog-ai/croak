@@ -1,0 +1,96 @@
+# Model Deployment Workflow
+# CROAK v1.0
+
+metadata:
+  id: "croak/workflows/model-deployment"
+  name: "Model Deployment"
+  version: "1.0.0"
+  agent: "deployment"
+  description: "Deploy models to cloud (vfrog) or edge (CUDA/TensorRT)"
+
+triggers:
+  commands:
+    - "croak deploy"
+    - "croak deploy cloud"
+    - "croak deploy edge"
+    - "croak export"
+    - "croak optimize"
+  states:
+    - "evaluation"
+    - "deployment"
+
+prerequisites:
+  - workflow: "model-evaluation"
+    artifact: "evaluation"
+    required: true
+    condition: "deployment_ready == true"
+
+steps:
+  - id: "init"
+    name: "Initialize Deployment"
+    file: "steps/step-01-init.md"
+    required: true
+    outputs:
+      - "evaluation_artifact"
+      - "deployment_target"
+
+  - id: "optimize"
+    name: "Optimize Model"
+    file: "steps/step-02-optimize.md"
+    required: true
+    depends_on: ["init"]
+    outputs:
+      - "optimized_model"
+      - "optimization_report"
+
+  - id: "export"
+    name: "Export Model"
+    file: "steps/step-03-export.md"
+    required: true
+    depends_on: ["optimize"]
+    outputs:
+      - "exported_model"
+      - "export_format"
+
+  - id: "deploy_cloud"
+    name: "Deploy to vfrog Cloud"
+    file: "steps/step-04a-deploy-cloud.md"
+    required: false
+    depends_on: ["export"]
+    condition: "deployment_target == 'cloud' or deployment_target == 'both'"
+    outputs:
+      - "cloud_endpoint"
+      - "api_credentials"
+
+  - id: "deploy_edge"
+    name: "Deploy to Edge"
+    file: "steps/step-04b-deploy-edge.md"
+    required: false
+    depends_on: ["export"]
+    condition: "deployment_target == 'edge' or deployment_target == 'both'"
+    outputs:
+      - "edge_model"
+      - "inference_script"
+
+  - id: "validate"
+    name: "Validate Deployment"
+    file: "steps/step-05-validate.md"
+    required: true
+    depends_on: ["deploy_cloud", "deploy_edge"]
+    outputs:
+      - "validation_results"
+      - "deployment_status"
+
+completion:
+  state_update: "deployment"
+  next_workflow: null
+  handoff_to: null
+
+checklist:
+  - "Evaluation shows deployment_ready"
+  - "Deployment target selected"
+  - "Model optimized for target"
+  - "Model exported to correct format"
+  - "Deployment executed"
+  - "Smoke tests passed"
+  - "Documentation generated"

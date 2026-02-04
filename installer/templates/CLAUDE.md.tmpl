@@ -1,0 +1,64 @@
+# CROAK Project — {{project_name}}
+
+This is a computer vision project managed by the CROAK framework
+(Computer Recognition Orchestration Agent Kit).
+
+## Project Configuration
+
+- **Task type:** {{task_type}}
+- **Architecture:** {{architecture}}
+- **GPU provider:** {{compute_provider}}
+- **Experiment tracking:** {{tracking_backend}}
+
+## CROAK Agents
+
+Use slash commands to activate specialized agents:
+
+- `/croak-router` — Pipeline coordinator (start here for guidance)
+- `/croak-data` — Data scanning, validation, and preparation
+- `/croak-training` — Model training configuration and execution
+- `/croak-evaluation` — Model evaluation and error analysis
+- `/croak-deployment` — Model export and deployment
+
+## CROAK Workflows
+
+Run end-to-end workflows:
+
+- `/croak-data-preparation` — Full data pipeline (scan → validate → annotate → split → export)
+- `/croak-model-training` — Training pipeline (recommend → configure → execute → handoff)
+- `/croak-model-evaluation` — Evaluation pipeline (evaluate → analyze → diagnose → report)
+- `/croak-model-deployment` — Deployment pipeline (export → optimize → deploy → verify)
+
+## Pipeline State
+
+Current progress is tracked in `.croak/pipeline-state.yaml`.
+Always check pipeline state before suggesting next steps.
+
+## Key Directories
+
+- `.croak/` — Framework configuration, agents, workflows, knowledge
+- `data/` — Raw and processed datasets
+- `training/` — Configs, scripts, and experiment outputs
+- `evaluation/` — Evaluation reports and analysis
+- `deployment/` — Exported models and deployment packages
+
+## CLI Commands
+
+The `croak` CLI provides these commands:
+
+- `croak scan` — Scan data directory for images
+- `croak validate` — Validate data quality
+- `croak prepare` — Run full data preparation workflow
+- `croak train` — Start model training
+- `croak evaluate` — Run model evaluation
+- `croak export` — Export model for deployment
+- `croak deploy` — Deploy model to cloud or edge
+- `croak status` — Check pipeline status
+
+## Conventions
+
+- Always validate data before training
+- Use handoff contracts for inter-agent communication
+- Update pipeline-state.yaml after completing any workflow stage
+- When in doubt, run `croak status` to check current state
+- Consult the knowledge base in `.croak/knowledge/` for domain guidance

@@ -1,0 +1,87 @@
+# CROAK Platform Configuration
+# Maps IDEs to their command directories and capabilities
+
+platforms:
+  claude-code:
+    name: "Claude Code"
+    enabled: true
+    command_directory: ".claude/commands/croak"
+    subdirectories:
+      agents: "agents"
+      workflows: "workflows"
+    project_context_file: "CLAUDE.md"
+    template_type: "markdown"
+    features:
+      - slash_commands
+      - project_context
+      - yaml_support
+
+  cursor:
+    name: "Cursor"
+    enabled: false  # Future support
+    command_directory: ".cursor/commands/croak"
+    subdirectories:
+      agents: "agents"
+      workflows: "workflows"
+    project_context_file: null
+    template_type: "markdown"
+    features:
+      - slash_commands
+
+  codex:
+    name: "Codex"
+    enabled: false  # Future support
+    command_directory: ".codex/commands/croak"
+    subdirectories:
+      agents: "agents"
+      workflows: "workflows"
+    project_context_file: null
+    template_type: "markdown"
+    features:
+      - slash_commands
+
+# Module definitions
+modules:
+  core:
+    name: "Core Agents"
+    description: "Essential CROAK agents for CV pipeline"
+    always_included: true
+    agents:
+      - router
+    workflows: []
+
+  data:
+    name: "Data Module"
+    description: "Data scanning, validation, and preparation"
+    default_enabled: true
+    agents:
+      - data
+    workflows:
+      - data-preparation
+
+  training:
+    name: "Training Module"
+    description: "Model training and experiment management"
+    default_enabled: true
+    agents:
+      - training
+    workflows:
+      - model-training
+
+  evaluation:
+    name: "Evaluation Module"
+    description: "Model evaluation and error analysis"
+    default_enabled: true
+    agents:
+      - evaluation
+    workflows:
+      - model-evaluation
+
+  deployment:
+    name: "Deployment Module"
+    description: "Model export and deployment"
+    default_enabled: true
+    agents:
+      - deployment
+    workflows:
+      - model-deployment

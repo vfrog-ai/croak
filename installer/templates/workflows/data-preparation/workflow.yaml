@@ -1,0 +1,90 @@
+# Data Preparation Workflow
+# CROAK v1.0
+
+metadata:
+  id: "croak/workflows/data-preparation"
+  name: "Data Preparation"
+  version: "1.0.0"
+  agent: "data"
+  description: "Prepare images and annotations for object detection training"
+
+triggers:
+  commands:
+    - "croak prepare"
+    - "croak scan"
+    - "croak validate"
+    - "croak annotate"
+    - "croak split"
+  states:
+    - "uninitialized"
+    - "data_preparation"
+
+steps:
+  - id: "init"
+    name: "Initialize Data Pipeline"
+    file: "steps/step-01-init.md"
+    required: true
+    outputs:
+      - "data_directory"
+      - "project_config"
+
+  - id: "scan"
+    name: "Scan Data Directory"
+    file: "steps/step-02-scan.md"
+    required: true
+    depends_on: ["init"]
+    outputs:
+      - "image_inventory"
+      - "existing_annotations"
+
+  - id: "validate"
+    name: "Validate Data Quality"
+    file: "steps/step-03-validate.md"
+    required: true
+    depends_on: ["scan"]
+    outputs:
+      - "quality_report"
+      - "validation_status"
+
+  - id: "annotate"
+    name: "Annotate with vfrog"
+    file: "steps/step-04-annotate.md"
+    required: true
+    depends_on: ["validate"]
+    skip_if: "annotations_exist"
+    outputs:
+      - "annotations"
+      - "vfrog_project_id"
+
+  - id: "split"
+    name: "Create Dataset Splits"
+    file: "steps/step-05-split.md"
+    required: true
+    depends_on: ["annotate"]
+    outputs:
+      - "train_split"
+      - "val_split"
+      - "test_split"
+
+  - id: "export"
+    name: "Export Training Dataset"
+    file: "steps/step-06-export.md"
+    required: true
+    depends_on: ["split"]
+    outputs:
+      - "dataset_path"
+      - "data_yaml"
+      - "handoff_artifact"
+
+completion:
+  state_update: "data_preparation"
+  next_workflow: "model-training"
+  handoff_to: "training"
+
+checklist:
+  - "All images validated and readable"
+  - "Annotations in YOLO format"
+  - "Train/val/test splits created"
+  - "Class balance reviewed"
+  - "Quality report generated"
+  - "data.yaml configured"
