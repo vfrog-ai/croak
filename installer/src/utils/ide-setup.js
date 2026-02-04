@@ -7,27 +7,27 @@ import { existsSync, mkdirSync } from 'fs';
 
 /**
  * Supported IDE configurations
- * Note: Claude Code discovers commands directly in .claude/commands/ (not subdirectories)
- * Command files are named with full command name: croak-router.md, croak-data.md, etc.
+ * Claude Code uses .claude/skills/<skill-name>/SKILL.md structure
+ * Each skill is a directory containing a SKILL.md file with frontmatter
  */
 export const IDE_CONFIGS = {
   'claude-code': {
     name: 'Claude Code',
-    commandDir: '.claude/commands',
+    skillsDir: '.claude/skills',
     commandPrefix: 'croak-',
     projectFile: 'CLAUDE.md',
     enabled: true,
   },
   cursor: {
     name: 'Cursor',
-    commandDir: '.cursor/commands',
+    skillsDir: '.cursor/skills',
     commandPrefix: 'croak-',
     projectFile: null,
     enabled: false, // Future support
   },
   codex: {
     name: 'Codex',
-    commandDir: '.codex/commands',
+    skillsDir: '.codex/skills',
     commandPrefix: 'croak-',
     projectFile: null,
     enabled: false, // Future support
@@ -83,7 +83,7 @@ export function detectIDEs() {
 }
 
 /**
- * Create IDE command directories
+ * Create IDE skills directories
  * @param {string} ideKey - IDE identifier
  * @returns {Object} Paths to created directories
  */
@@ -94,27 +94,27 @@ export function createIDEDirectories(ideKey) {
   }
 
   const paths = {
-    base: config.commandDir,
+    base: config.skillsDir,
   };
 
-  // Create command directory
-  if (!existsSync(config.commandDir)) {
-    mkdirSync(config.commandDir, { recursive: true });
+  // Create skills directory
+  if (!existsSync(config.skillsDir)) {
+    mkdirSync(config.skillsDir, { recursive: true });
   }
 
   return paths;
 }
 
 /**
- * Check if IDE commands are already set up
+ * Check if IDE skills are already set up
  * @param {string} ideKey - IDE identifier
- * @returns {boolean} True if commands directory exists
+ * @returns {boolean} True if skills directory exists
  */
 export function isIDESetup(ideKey) {
   const config = IDE_CONFIGS[ideKey];
   if (!config) return false;
 
-  return existsSync(config.commandDir);
+  return existsSync(config.skillsDir);
 }
 
 /**

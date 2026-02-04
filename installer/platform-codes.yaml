@@ -5,36 +5,36 @@ platforms:
   claude-code:
     name: "Claude Code"
     enabled: true
-    command_directory: ".claude/commands"
-    command_prefix: "croak-"
-    # Commands are placed directly in command_directory with prefix
-    # e.g., .claude/commands/croak-router.md, .claude/commands/croak-data-preparation.md
+    skills_directory: ".claude/skills"
+    skill_prefix: "croak-"
+    # Skills use directory structure: .claude/skills/<skill-name>/SKILL.md
+    # e.g., .claude/skills/croak-router/SKILL.md
     project_context_file: "CLAUDE.md"
     template_type: "markdown"
     features:
-      - slash_commands
+      - skills
       - project_context
       - yaml_support
 
   cursor:
     name: "Cursor"
     enabled: false  # Future support
-    command_directory: ".cursor/commands"
-    command_prefix: "croak-"
+    skills_directory: ".cursor/skills"
+    skill_prefix: "croak-"
     project_context_file: null
     template_type: "markdown"
     features:
-      - slash_commands
+      - skills
 
   codex:
     name: "Codex"
     enabled: false  # Future support
-    command_directory: ".codex/commands"
-    command_prefix: "croak-"
+    skills_directory: ".codex/skills"
+    skill_prefix: "croak-"
     project_context_file: null
     template_type: "markdown"
     features:
-      - slash_commands
+      - skills
 
 # Module definitions
 modules:

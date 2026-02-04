@@ -3,7 +3,7 @@
  * Generates IDE slash commands from agent and workflow definitions
  */
 
-import { readFileSync, writeFileSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'yaml';
@@ -127,13 +127,14 @@ function extractWorkflowMetadata(workflowDef) {
 }
 
 /**
- * Generate agent slash command file
+ * Generate agent skill directory and SKILL.md file
+ * Claude Code expects: .claude/skills/<skill-name>/SKILL.md
  * @param {string} agentPath - Path to agent YAML file
- * @param {string} outputDir - Output directory for command file
- * @param {string} prefix - Command name prefix (e.g., 'croak-')
- * @returns {string} Path to generated command file
+ * @param {string} skillsDir - Base skills directory (.claude/skills)
+ * @param {string} prefix - Skill name prefix (e.g., 'croak-')
+ * @returns {string} Path to generated SKILL.md file
  */
-export function generateAgentCommand(agentPath, outputDir, prefix = 'croak-') {
+export function generateAgentCommand(agentPath, skillsDir, prefix = 'croak-') {
   // Load agent definition
   const agentDef = loadYaml(agentPath);
   const metadata = extractAgentMetadata(agentDef);
@@ -145,21 +146,29 @@ export function generateAgentCommand(agentPath, outputDir, prefix = 'croak-') {
   // Render template
   const rendered = renderTemplate(template, metadata);
 
-  // Write output file with full command name (e.g., croak-router.md)
-  const outputPath = join(outputDir, `${prefix}${metadata.agent_id}.md`);
+  // Create skill directory (e.g., .claude/skills/croak-router/)
+  const skillName = `${prefix}${metadata.agent_id}`;
+  const skillDir = join(skillsDir, skillName);
+  if (!existsSync(skillDir)) {
+    mkdirSync(skillDir, { recursive: true });
+  }
+
+  // Write SKILL.md inside the skill directory
+  const outputPath = join(skillDir, 'SKILL.md');
   writeFileSync(outputPath, rendered);
 
   return outputPath;
 }
 
 /**
- * Generate workflow slash command file
+ * Generate workflow skill directory and SKILL.md file
+ * Claude Code expects: .claude/skills/<skill-name>/SKILL.md
  * @param {string} workflowDir - Path to workflow directory
- * @param {string} outputDir - Output directory for command file
- * @param {string} prefix - Command name prefix (e.g., 'croak-')
- * @returns {string} Path to generated command file
+ * @param {string} skillsDir - Base skills directory (.claude/skills)
+ * @param {string} prefix - Skill name prefix (e.g., 'croak-')
+ * @returns {string} Path to generated SKILL.md file
  */
-export function generateWorkflowCommand(workflowDir, outputDir, prefix = 'croak-') {
+export function generateWorkflowCommand(workflowDir, skillsDir, prefix = 'croak-') {
   // Load workflow definition
   const workflowPath = join(workflowDir, 'workflow.yaml');
   const workflowDef = loadYaml(workflowPath);
@@ -172,8 +181,15 @@ export function generateWorkflowCommand(workflowDir, outputDir, prefix = 'croak-
   // Render template
   const rendered = renderTemplate(template, metadata);
 
-  // Write output file with full command name (e.g., croak-data-preparation.md)
-  const outputPath = join(outputDir, `${prefix}${metadata.workflow_id}.md`);
+  // Create skill directory (e.g., .claude/skills/croak-data-preparation/)
+  const skillName = `${prefix}${metadata.workflow_id}`;
+  const skillDir = join(skillsDir, skillName);
+  if (!existsSync(skillDir)) {
+    mkdirSync(skillDir, { recursive: true });
+  }
+
+  // Write SKILL.md inside the skill directory
+  const outputPath = join(skillDir, 'SKILL.md');
   writeFileSync(outputPath, rendered);
 
   return outputPath;

@@ -296,31 +296,30 @@ async function checkIDEIntegration() {
   };
 
   // Check Claude Code
-  // Commands are now directly in .claude/commands/ with croak- prefix
-  const claudeCommandsDir = '.claude/commands';
+  // Skills are in .claude/skills/<skill-name>/SKILL.md
+  const claudeSkillsDir = '.claude/skills';
 
   if (existsSync('.claude')) {
     result.claudeCode.detected = true;
 
-    if (existsSync(claudeCommandsDir)) {
-      const commandFiles = readdirSync(claudeCommandsDir).filter((f) =>
-        f.startsWith('croak-') && f.endsWith('.md')
+    if (existsSync(claudeSkillsDir)) {
+      const skillDirs = readdirSync(claudeSkillsDir).filter((d) =>
+        d.startsWith('croak-') && existsSync(join(claudeSkillsDir, d, 'SKILL.md'))
       );
 
-      if (commandFiles.length > 0) {
+      if (skillDirs.length > 0) {
         result.claudeCode.commandsExist = true;
 
         // Count agents (croak-router, croak-data, etc.)
-        const agentCommands = ['router', 'data', 'training', 'evaluation', 'deployment'];
-        result.claudeCode.agentCount = commandFiles.filter((f) =>
-          agentCommands.some((agent) => f === `croak-${agent}.md`)
+        const agentSkills = ['router', 'data', 'training', 'evaluation', 'deployment'];
+        result.claudeCode.agentCount = skillDirs.filter((d) =>
+          agentSkills.some((agent) => d === `croak-${agent}`)
         ).length;
 
         // Count workflows (croak-data-preparation, croak-model-training, etc.)
-        // Use exact matching to avoid counting agent files like croak-training.md
-        const workflowCommands = ['data-preparation', 'model-training', 'model-evaluation', 'model-deployment'];
-        result.claudeCode.workflowCount = commandFiles.filter((f) =>
-          workflowCommands.some((workflow) => f === `croak-${workflow}.md`)
+        const workflowSkills = ['data-preparation', 'model-training', 'model-evaluation', 'model-deployment'];
+        result.claudeCode.workflowCount = skillDirs.filter((d) =>
+          workflowSkills.some((workflow) => d === `croak-${workflow}`)
         ).length;
       }
     }
