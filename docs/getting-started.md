@@ -13,7 +13,7 @@ CROAK (Computer Recognition Orchestration Agent Kit) is an agentic framework for
 ### Option 1: NPM Installer (Recommended)
 
 ```bash
-npx croak-cv
+npx croak-cv init
 ```
 
 This will:
@@ -21,6 +21,7 @@ This will:
 2. Create a virtual environment
 3. Install CROAK and dependencies
 4. Set up a new project
+5. **Configure Claude Code integration** (slash commands and project context)
 
 ### Option 2: Manual Installation
 
@@ -42,11 +43,18 @@ After initialization, your project will have this structure:
 
 ```
 my-project/
+├── .claude/                   # Claude Code integration
+│   └── commands/croak/
+│       ├── agents/           # Agent slash commands
+│       └── workflows/        # Workflow slash commands
 ├── .croak/                    # CROAK configuration
 │   ├── config.yaml           # Project configuration
 │   ├── pipeline-state.yaml   # Pipeline progress tracking
+│   ├── agents/               # Agent YAML definitions
+│   ├── workflows/            # Workflow specifications
 │   ├── handoffs/             # Agent handoff files
-│   └── logs/                 # Execution logs
+│   └── knowledge/            # Domain knowledge base
+├── CLAUDE.md                  # Project context for Claude Code
 ├── data/
 │   ├── raw/                  # Original images
 │   ├── annotations/          # Annotation files
@@ -63,7 +71,34 @@ my-project/
     └── edge/                 # Edge deployment packages
 ```
 
-## Basic Workflow
+## Using with Claude Code (Recommended)
+
+The easiest way to use CROAK is through Claude Code slash commands:
+
+1. **Open your project** in Claude Code (VS Code with Claude extension or Claude Code CLI)
+
+2. **Start with the Router** to get guidance:
+   ```
+   /croak-router
+   ```
+
+3. **Use agent commands** for specific tasks:
+   - `/croak-data` - Data scanning and validation
+   - `/croak-training` - Model training
+   - `/croak-evaluation` - Model evaluation
+   - `/croak-deployment` - Model deployment
+
+4. **Use workflow commands** for end-to-end pipelines:
+   - `/croak-data-preparation` - Full data pipeline
+   - `/croak-model-training` - Full training pipeline
+   - `/croak-model-evaluation` - Full evaluation pipeline
+   - `/croak-model-deployment` - Full deployment pipeline
+
+See [Claude Code Integration](claude-code-integration.md) for detailed documentation.
+
+## CLI Workflow
+
+You can also use CROAK directly from the command line:
 
 ### 1. Add Your Data
 
@@ -169,6 +204,7 @@ export MODAL_TOKEN_SECRET=your_secret
 
 ## Next Steps
 
+- Set up [Claude Code Integration](claude-code-integration.md) for the best experience
 - Learn about [Agents](agents.md) and how they work
 - Understand [Workflows](workflows.md) and customization
 - Explore the [API Reference](api-reference.md)

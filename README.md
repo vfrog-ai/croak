@@ -74,14 +74,83 @@ croak deploy   # Deploy to cloud (vfrog) or edge (TensorRT)
 | `croak upgrade` | Upgrade to latest version |
 | `croak help` | Show help |
 
+## Using CROAK with Claude Code
+
+CROAK integrates natively with Claude Code through slash commands. This is the recommended way to use CROAK for an interactive, guided experience.
+
+### Setup
+
+1. **Initialize your project** - this automatically sets up Claude Code integration:
+   ```bash
+   npx croak-cv init
+   ```
+
+2. **Open your project in Claude Code** (VS Code with Claude extension, or Claude Code CLI)
+
+3. **Start with the Router** - type `/croak-router` to get guidance on next steps
+
+### Slash Commands
+
+Once initialized, these slash commands are available in Claude Code:
+
+#### Agent Commands
+| Command | Agent | What It Does |
+|---------|-------|--------------|
+| `/croak-router` | 🐸 Dispatcher | **Start here!** Pipeline coordinator that guides you through the workflow |
+| `/croak-data` | 📊 Scout | Scan directories, validate images, check annotations, prepare datasets |
+| `/croak-training` | 🎯 Coach | Configure training, select architectures, manage experiments |
+| `/croak-evaluation` | 📈 Judge | Evaluate models, analyze errors, generate reports |
+| `/croak-deployment` | 🚀 Shipper | Export models, deploy to cloud (vfrog) or edge (TensorRT) |
+
+#### Workflow Commands
+| Command | Description |
+|---------|-------------|
+| `/croak-data-preparation` | Full data pipeline: scan → validate → annotate → split → export |
+| `/croak-model-training` | Training pipeline: recommend → configure → execute → handoff |
+| `/croak-model-evaluation` | Evaluation pipeline: evaluate → analyze → diagnose → report |
+| `/croak-model-deployment` | Deployment pipeline: export → optimize → deploy → verify |
+
+### Example Session
+
+```
+You: /croak-router
+
+Claude: 🐸 Dispatcher here! I see this is a new CROAK project.
+        Current stage: uninitialized
+
+        Let me help you get started. Do you have images ready to train on?
+
+You: Yes, I have 500 product images in ~/photos/products
+
+Claude: Great! Let me hand you off to Scout (Data Agent) to scan and validate them.
+
+You: /croak-data
+
+Claude: 📊 Scout reporting for duty! I'll help you prepare your dataset.
+        Let me scan ~/photos/products...
+        [Runs: croak scan ~/photos/products]
+
+        Found 500 images. 487 valid, 13 have issues...
+```
+
+### How It Works
+
+When you run `croak init`, CROAK creates:
+- `.claude/commands/croak/agents/` - Slash command files for each agent
+- `.claude/commands/croak/workflows/` - Slash command files for each workflow
+- `CLAUDE.md` - Project context file that Claude Code reads automatically
+
+Claude Code discovers these files and makes them available as slash commands. Each command activates a specialized AI persona with domain expertise.
+
 ## What CROAK Does
 
 CROAK provides structured workflows for computer vision model development:
 
-1. **Data Agent ("Scout")** - Validates, formats, and manages your datasets
-2. **Training Agent ("Coach")** - Configures and executes model training
-3. **Evaluation Agent ("Judge")** - Analyzes model performance with actionable insights
-4. **Deployment Agent ("Shipper")** - Deploys to cloud (vfrog) or edge (CUDA/TensorRT)
+1. **Router Agent ("Dispatcher")** 🐸 - Coordinates the pipeline and routes requests to specialists
+2. **Data Agent ("Scout")** 📊 - Validates, formats, and manages your datasets
+3. **Training Agent ("Coach")** 🎯 - Configures and executes model training
+4. **Evaluation Agent ("Judge")** 📈 - Analyzes model performance with actionable insights
+5. **Deployment Agent ("Shipper")** 🚀 - Deploys to cloud (vfrog) or edge (CUDA/TensorRT)
 
 ## Requirements
 
@@ -102,12 +171,14 @@ CROAK provides structured workflows for computer vision model development:
 
 ### v1.0 "Detection Core"
 
+- ✅ **Claude Code Integration** - Native slash commands for all agents and workflows
 - ✅ Object Detection workflows
 - ✅ YOLO family (v8, v11) and RT-DETR architectures
 - ✅ vfrog.ai integration for annotation and cloud deployment
 - ✅ Modal.com integration for GPU training
 - ✅ Edge deployment (ONNX, TensorRT, CUDA)
 - ✅ MLflow/W&B experiment tracking
+- ✅ Auto-generated `CLAUDE.md` project context
 
 ## Project Structure
 
@@ -115,29 +186,36 @@ After running `croak init`, your project will have:
 
 ```
 your-project/
-├── .croak/
-│   ├── config.yaml          # Project configuration
-│   ├── pipeline-state.yaml  # Pipeline progress tracking
-│   ├── agents/              # Agent definitions
-│   ├── workflows/           # Workflow specifications
-│   ├── knowledge/           # Knowledge base
-│   └── contracts/           # Handoff contracts
+├── .claude/                   # Claude Code integration
+│   └── commands/
+│       └── croak/
+│           ├── agents/        # Agent slash commands (/croak-data, etc.)
+│           └── workflows/     # Workflow slash commands
+├── .croak/                    # CROAK configuration
+│   ├── config.yaml           # Project configuration
+│   ├── pipeline-state.yaml   # Pipeline progress tracking
+│   ├── agents/               # Agent YAML definitions
+│   ├── workflows/            # Workflow specifications
+│   ├── knowledge/            # Knowledge base
+│   └── contracts/            # Handoff contracts
+├── CLAUDE.md                  # Project context for Claude Code
 ├── data/
-│   ├── raw/                 # Raw images
-│   └── processed/           # Processed datasets
+│   ├── raw/                  # Raw images
+│   └── processed/            # Processed datasets
 ├── training/
-│   ├── configs/             # Training configurations
-│   ├── scripts/             # Training scripts
-│   └── experiments/         # Experiment outputs
+│   ├── configs/              # Training configurations
+│   ├── scripts/              # Training scripts
+│   └── experiments/          # Experiment outputs
 ├── evaluation/
-│   └── reports/             # Evaluation reports
+│   └── reports/              # Evaluation reports
 └── deployment/
-    └── edge/                # Edge deployment packages
+    └── edge/                 # Edge deployment packages
 ```
 
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
+- [Claude Code Integration](docs/claude-code-integration.md)
 - [Agent Reference](docs/agents.md)
 - [Workflow Guide](docs/workflows.md)
 - [Knowledge Base](knowledge/README.md)
