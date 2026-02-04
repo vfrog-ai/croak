@@ -317,9 +317,10 @@ async function checkIDEIntegration() {
         ).length;
 
         // Count workflows (croak-data-preparation, croak-model-training, etc.)
+        // Use exact matching to avoid counting agent files like croak-training.md
+        const workflowCommands = ['data-preparation', 'model-training', 'model-evaluation', 'model-deployment'];
         result.claudeCode.workflowCount = commandFiles.filter((f) =>
-          f.includes('-preparation') || f.includes('-training') ||
-          f.includes('-evaluation') || f.includes('-deployment')
+          workflowCommands.some((workflow) => f === `croak-${workflow}.md`)
         ).length;
       }
     }
