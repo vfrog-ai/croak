@@ -75,6 +75,15 @@ class Experiment(BaseModel):
     model_path: Optional[str] = None
 
 
+class StageHistory(BaseModel):
+    """History entry for a completed stage."""
+
+    stage: str
+    completed_at: str
+    duration_seconds: Optional[float] = None
+    artifacts: dict[str, Any] = Field(default_factory=dict)
+
+
 class PipelineState(BaseModel):
     """CROAK pipeline state."""
 
@@ -84,6 +93,10 @@ class PipelineState(BaseModel):
 
     current_stage: str = "uninitialized"
     stages_completed: list[str] = Field(default_factory=list)
+    stage_history: list[StageHistory] = Field(default_factory=list)
+
+    # Data configuration
+    data_yaml_path: Optional[str] = None
 
     artifacts: Artifacts = Field(default_factory=Artifacts)
     experiments: list[Experiment] = Field(default_factory=list)

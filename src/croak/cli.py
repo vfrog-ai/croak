@@ -238,6 +238,148 @@ def reset():
     console.print("[green]Pipeline state reset.[/green]")
 
 
+@main.command()
+def next():
+    """Suggest the next step based on pipeline state."""
+    root = ensure_initialized()
+    state = PipelineState.load(root / ".croak" / "pipeline-state.yaml")
+    config = CroakConfig.load(root / ".croak" / "config.yaml")
+
+    console.print(Panel.fit(
+        f"[cyan]{config.project_name}[/cyan]",
+        title="🐸 CROAK - Next Step"
+    ))
+
+    # Determine next step based on current stage
+    if state.current_stage == "uninitialized":
+        console.print("\n[bold]Your next step:[/bold] Add data and scan it\n")
+        console.print("1. Add images to [cyan]data/raw/[/cyan]")
+        console.print("2. Run: [cyan]croak scan data/raw[/cyan]")
+        console.print("\nThis will discover your images and detect any existing annotations.")
+
+    elif state.current_stage == "data_preparation" or "data_preparation" not in state.stages_completed:
+        # Check what's been done in data preparation
+        has_scan = (root / "data" / "raw").exists() and any((root / "data" / "raw").iterdir()) if (root / "data" / "raw").exists() else False
+
+        if not has_scan:
+            console.print("\n[bold]Your next step:[/bold] Scan your data\n")
+            console.print("Run: [cyan]croak scan data/raw[/cyan]")
+        elif not state.data_yaml_path:
+            console.print("\n[bold]Your next step:[/bold] Prepare your data\n")
+            console.print("Run: [cyan]croak prepare[/cyan]")
+            console.print("\nThis will validate your data and create train/val/test splits.")
+        else:
+            console.print("\n[bold]Your next step:[/bold] Start training\n")
+            console.print("Run: [cyan]croak train[/cyan]")
+
+    elif state.current_stage == "training" or "training" not in state.stages_completed:
+        if state.artifacts.model.path:
+            console.print("\n[bold]Your next step:[/bold] Evaluate your model\n")
+            console.print("Run: [cyan]croak evaluate[/cyan]")
+        else:
+            console.print("\n[bold]Your next step:[/bold] Train your model\n")
+            console.print("1. (Optional) Get architecture recommendation: [cyan]croak recommend[/cyan]")
+            console.print("2. (Optional) Estimate training cost: [cyan]croak estimate[/cyan]")
+            console.print("3. Start training: [cyan]croak train[/cyan]")
+
+    elif state.current_stage == "evaluation" or "evaluation" not in state.stages_completed:
+        console.print("\n[bold]Your next step:[/bold] Evaluate your model\n")
+        console.print("Run: [cyan]croak evaluate[/cyan]")
+        console.print("\nThis will compute metrics like mAP, precision, and recall.")
+
+    elif state.current_stage == "deployment" or "deployment" not in state.stages_completed:
+        console.print("\n[bold]Your next step:[/bold] Deploy your model\n")
+        console.print("Options:")
+        console.print("  • Export for edge: [cyan]croak export --format onnx[/cyan]")
+        console.print("  • Deploy to cloud: [cyan]croak deploy cloud[/cyan]")
+        console.print("  • Package for edge: [cyan]croak deploy edge[/cyan]")
+
+    else:
+        console.print("\n[green]✓ Pipeline complete![/green]")
+        console.print("\nYour model is trained, evaluated, and ready for deployment.")
+        console.print("\nYou can:")
+        console.print("  • Re-evaluate: [cyan]croak evaluate[/cyan]")
+        console.print("  • Export to new format: [cyan]croak export --format <format>[/cyan]")
+        console.print("  • Start fresh: [cyan]croak reset[/cyan]")
+
+
+@main.command()
+def history():
+    """Show completed pipeline stages and timestamps."""
+    root = ensure_initialized()
+    state = PipelineState.load(root / ".croak" / "pipeline-state.yaml")
+    config = CroakConfig.load(root / ".croak" / "config.yaml")
+
+    console.print(Panel.fit(
+        f"[cyan]{config.project_name}[/cyan]",
+        title="🐸 CROAK - Pipeline History"
+    ))
+
+    if state.initialized_at:
+        console.print(f"\n[bold]Initialized:[/bold] {state.initialized_at}")
+
+    if state.last_updated:
+        console.print(f"[bold]Last Updated:[/bold] {state.last_updated}")
+
+    # Show stage history if available
+    if state.stage_history:
+        console.print("\n[bold]Stage History:[/bold]")
+        table = Table()
+        table.add_column("Stage", style="cyan")
+        table.add_column("Completed At", style="green")
+        table.add_column("Duration", style="yellow")
+
+        for entry in state.stage_history:
+            duration = ""
+            if entry.duration_seconds:
+                if entry.duration_seconds < 60:
+                    duration = f"{entry.duration_seconds:.1f}s"
+                elif entry.duration_seconds < 3600:
+                    duration = f"{entry.duration_seconds / 60:.1f}m"
+                else:
+                    duration = f"{entry.duration_seconds / 3600:.1f}h"
+            table.add_row(entry.stage, entry.completed_at, duration)
+
+        console.print(table)
+
+    elif state.stages_completed:
+        # Fallback to simple list if no detailed history
+        console.print("\n[bold]Completed Stages:[/bold]")
+        for stage in state.stages_completed:
+            console.print(f"  [green]✓[/green] {stage}")
+
+    else:
+        console.print("\n[dim]No stages completed yet.[/dim]")
+
+    # Show experiments if any
+    if state.experiments:
+        console.print("\n[bold]Experiments:[/bold]")
+        table = Table()
+        table.add_column("ID", style="cyan")
+        table.add_column("Status", style="green")
+        table.add_column("Architecture", style="yellow")
+        table.add_column("Started", style="dim")
+
+        for exp in state.experiments:
+            status_style = {
+                "completed": "[green]completed[/green]",
+                "running": "[yellow]running[/yellow]",
+                "failed": "[red]failed[/red]",
+                "pending": "[dim]pending[/dim]",
+            }.get(exp.status, exp.status)
+
+            table.add_row(
+                exp.id,
+                status_style,
+                exp.architecture or "-",
+                exp.started or "-"
+            )
+
+        console.print(table)
+
+    console.print(f"\n[bold]Current Stage:[/bold] {state.current_stage}")
+
+
 # ============================================================================
 # Data Commands
 # ============================================================================

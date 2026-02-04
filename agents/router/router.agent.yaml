@@ -312,3 +312,4 @@ agent:
         path: "templates/router/status-report.md.tmpl"
         output: ".croak/reports/status-report.md"
         description: "Pipeline status report template"
+
