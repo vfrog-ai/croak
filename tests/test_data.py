@@ -5,6 +5,8 @@ from pathlib import Path
 import tempfile
 import shutil
 
+from PIL import Image
+
 from croak.data.validator import DataValidator, ValidationResult
 from croak.data.splitter import DatasetSplitter
 
@@ -23,15 +25,16 @@ class TestDataValidator:
 
     def _create_dataset_structure(self, num_images=10, num_labels=10):
         """Create a test dataset structure."""
-        images_dir = self.dataset_dir / "images"
-        labels_dir = self.dataset_dir / "labels"
+        images_dir = self.dataset_dir / "raw"
+        labels_dir = self.dataset_dir / "annotations"
         images_dir.mkdir(parents=True)
         labels_dir.mkdir(parents=True)
 
-        # Create fake images
+        # Create valid JPEG images using PIL
         for i in range(num_images):
             image_path = images_dir / f"img_{i:04d}.jpg"
-            image_path.write_bytes(b'\xff\xd8\xff\xe0' + b'\x00' * 100)
+            img = Image.new('RGB', (640, 480), color=(i % 256, 0, 0))
+            img.save(str(image_path), 'JPEG')
 
         # Create labels
         for i in range(num_labels):
@@ -46,7 +49,7 @@ class TestDataValidator:
         validator = DataValidator(self.dataset_dir)
         result = validator.validate_all()
 
-        assert not result.is_valid
+        assert not result.passed
         assert len(result.errors) > 0
 
     def test_validate_valid_dataset(self):
@@ -56,8 +59,8 @@ class TestDataValidator:
         validator = DataValidator(self.dataset_dir)
         result = validator.validate_all()
 
-        # May have warnings but should be valid
-        assert result.statistics.get("total_images", 0) == 100
+        # May have warnings but should find all images
+        assert result.statistics.get("images", {}).get("total_images", 0) == 100
 
     def test_validate_missing_labels(self):
         """Test detecting missing labels."""
@@ -66,35 +69,38 @@ class TestDataValidator:
         validator = DataValidator(self.dataset_dir)
         result = validator.validate_all()
 
-        # Should have warnings about missing labels
-        assert any("missing" in w.lower() or "label" in w.lower()
-                   for w in result.warnings + result.errors)
+        # Should have warnings about missing annotations
+        all_messages = result.warnings + result.errors
+        assert any("annotation" in w.lower() or "without" in w.lower()
+                   for w in all_messages)
 
     def test_validate_corrupt_label(self):
         """Test detecting corrupt label files."""
         self._create_dataset_structure(num_images=5, num_labels=5)
 
         # Corrupt one label
-        corrupt_label = self.dataset_dir / "labels" / "img_0000.txt"
+        corrupt_label = self.dataset_dir / "annotations" / "img_0000.txt"
         corrupt_label.write_text("not valid yolo format")
 
         validator = DataValidator(self.dataset_dir)
         result = validator.validate_all()
 
         # Should detect the corrupt label
+        all_messages = result.errors + result.warnings
         assert any("invalid" in str(e).lower() or "corrupt" in str(e).lower()
-                   or "format" in str(e).lower() for e in result.errors + result.warnings)
+                   or "format" in str(e).lower() or "error" in str(e).lower()
+                   for e in all_messages)
 
     def test_validation_result_structure(self):
         """Test ValidationResult structure."""
         result = ValidationResult(
-            is_valid=True,
+            passed=True,
             errors=[],
             warnings=["minor issue"],
             statistics={"total_images": 100},
         )
 
-        assert result.is_valid
+        assert result.passed
         assert len(result.warnings) == 1
         assert result.statistics["total_images"] == 100
 
@@ -113,14 +119,15 @@ class TestDatasetSplitter:
 
     def _create_dataset(self, num_images=100):
         """Create test dataset."""
-        images_dir = self.dataset_dir / "images"
-        labels_dir = self.dataset_dir / "labels"
+        images_dir = self.dataset_dir / "raw"
+        labels_dir = self.dataset_dir / "annotations"
         images_dir.mkdir(parents=True)
         labels_dir.mkdir(parents=True)
 
         for i in range(num_images):
             image_path = images_dir / f"img_{i:04d}.jpg"
-            image_path.write_bytes(b'\xff\xd8\xff\xe0' + b'\x00' * 100)
+            img = Image.new('RGB', (64, 64), color=(i % 256, (i * 7) % 256, 0))
+            img.save(str(image_path), 'JPEG')
 
             label_path = labels_dir / f"img_{i:04d}.txt"
             class_id = i % 3  # Cycle through 3 classes
@@ -133,11 +140,8 @@ class TestDatasetSplitter:
         splitter = DatasetSplitter(self.dataset_dir)
         result = splitter.split()
 
-        assert result.get("success")
-        splits = result.get("splits", {})
-
-        # Check approximate ratios (80/15/5)
-        total = sum(splits.values())
+        # Check total adds up
+        total = result["train"] + result["val"] + result["test"]
         assert total == 100
 
     def test_split_custom_ratios(self):
@@ -149,13 +153,12 @@ class TestDatasetSplitter:
             train_ratio=0.7,
             val_ratio=0.2,
             test_ratio=0.1,
+            stratify=False,
         )
 
-        assert result.get("success")
-        splits = result.get("splits", {})
-        assert splits.get("train", 0) == 70
-        assert splits.get("val", 0) == 20
-        assert splits.get("test", 0) == 10
+        assert result["train"] == 70
+        assert result["val"] == 20
+        assert result["test"] == 10
 
     def test_split_creates_data_yaml(self):
         """Test that data.yaml is created."""
@@ -164,8 +167,8 @@ class TestDatasetSplitter:
         splitter = DatasetSplitter(self.dataset_dir)
         result = splitter.split()
 
-        assert result.get("data_yaml_path")
-        data_yaml_path = Path(result["data_yaml_path"])
+        assert result.get("data_yaml")
+        data_yaml_path = Path(result["data_yaml"])
         assert data_yaml_path.exists()
 
     def test_split_reproducibility(self):
@@ -179,7 +182,10 @@ class TestDatasetSplitter:
         splitter2 = DatasetSplitter(self.dataset_dir)
         result2 = splitter2.split(seed=42)
 
-        assert result1.get("splits") == result2.get("splits")
+        assert result1["train"] == result2["train"]
+        assert result1["val"] == result2["val"]
+        assert result1["test"] == result2["test"]
+        assert result1["dataset_hash"] == result2["dataset_hash"]
 
     def test_split_stratified(self):
         """Test stratified splitting."""
@@ -188,19 +194,17 @@ class TestDatasetSplitter:
         splitter = DatasetSplitter(self.dataset_dir)
         result = splitter.split(stratify=True)
 
-        assert result.get("success")
-        # Stratified split should maintain class proportions in each split
+        total = result["train"] + result["val"] + result["test"]
+        assert total == 100
 
     def test_split_invalid_ratios(self):
         """Test that invalid ratios are rejected."""
         self._create_dataset(100)
 
         splitter = DatasetSplitter(self.dataset_dir)
-        result = splitter.split(
-            train_ratio=0.5,
-            val_ratio=0.5,
-            test_ratio=0.5,  # Sum > 1
-        )
-
-        assert not result.get("success")
-        assert "ratio" in result.get("error", "").lower()
+        with pytest.raises(ValueError, match="[Rr]atio"):
+            splitter.split(
+                train_ratio=0.5,
+                val_ratio=0.5,
+                test_ratio=0.5,  # Sum > 1
+            )

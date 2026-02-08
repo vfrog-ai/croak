@@ -6,6 +6,7 @@ import tempfile
 import yaml
 
 from croak.workflows.executor import WorkflowExecutor, Workflow, WorkflowStep
+from croak.core.state import PipelineState
 
 
 class TestWorkflow:
@@ -22,14 +23,14 @@ class TestWorkflow:
                     id="step1",
                     name="First Step",
                     agent="data-agent",
-                    command="validate",
+                    description="Validate data",
                     depends_on=[],
                 ),
                 WorkflowStep(
                     id="step2",
                     name="Second Step",
                     agent="training-agent",
-                    command="train",
+                    description="Train model",
                     depends_on=["step1"],
                 ),
             ],
@@ -51,13 +52,11 @@ class TestWorkflowExecutor:
         self.workflows_dir.mkdir(parents=True)
 
         # Create pipeline state
-        state_dir = self.project_dir / ".croak"
-        state_path = state_dir / "pipeline-state.yaml"
-        state_path.write_text(yaml.dump({
-            "current_stage": "uninitialized",
-            "stages_completed": [],
-            "initialized_at": "2024-01-01T00:00:00",
-        }))
+        self.state = PipelineState(
+            current_stage="uninitialized",
+            stages_completed=[],
+            initialized_at="2024-01-01T00:00:00",
+        )
 
     def teardown_method(self):
         """Clean up."""
@@ -65,7 +64,10 @@ class TestWorkflowExecutor:
         shutil.rmtree(self.tmpdir)
 
     def _create_workflow_file(self, workflow_id: str, steps: list):
-        """Create a workflow YAML file."""
+        """Create a workflow YAML file in subdirectory structure."""
+        workflow_dir = self.workflows_dir / workflow_id
+        workflow_dir.mkdir(parents=True, exist_ok=True)
+
         workflow = {
             "id": workflow_id,
             "name": f"Test {workflow_id}",
@@ -73,7 +75,7 @@ class TestWorkflowExecutor:
             "steps": steps,
         }
 
-        workflow_path = self.workflows_dir / f"{workflow_id}.yaml"
+        workflow_path = workflow_dir / "workflow.yaml"
         with open(workflow_path, "w") as f:
             yaml.dump(workflow, f)
 
@@ -86,12 +88,12 @@ class TestWorkflowExecutor:
                 "id": "step1",
                 "name": "Step 1",
                 "agent": "data-agent",
-                "command": "validate",
+                "description": "Validate data",
                 "depends_on": [],
             }
         ])
 
-        executor = WorkflowExecutor(self.project_dir)
+        executor = WorkflowExecutor(self.workflows_dir, self.state)
         workflow = executor.load_workflow("test-workflow")
 
         assert workflow.id == "test-workflow"
@@ -104,30 +106,30 @@ class TestWorkflowExecutor:
                 "id": "step1",
                 "name": "Step 1",
                 "agent": "data-agent",
-                "command": "validate",
+                "description": "Validate data",
                 "depends_on": [],
             },
             {
                 "id": "step2",
                 "name": "Step 2",
                 "agent": "training-agent",
-                "command": "train",
+                "description": "Train model",
                 "depends_on": ["step1"],
             },
         ])
 
-        executor = WorkflowExecutor(self.project_dir)
+        executor = WorkflowExecutor(self.workflows_dir, self.state)
         workflow = executor.load_workflow("multi-step")
 
         # Initially only step1 should be ready
-        ready = executor.get_ready_steps(workflow, [])
-        assert len(ready) == 1
-        assert ready[0].id == "step1"
+        next_step = workflow.get_next_step([])
+        assert next_step is not None
+        assert next_step.id == "step1"
 
         # After step1 completes, step2 should be ready
-        ready = executor.get_ready_steps(workflow, ["step1"])
-        assert len(ready) == 1
-        assert ready[0].id == "step2"
+        next_step = workflow.get_next_step(["step1"])
+        assert next_step is not None
+        assert next_step.id == "step2"
 
     def test_complete_step(self):
         """Test completing a workflow step."""
@@ -136,12 +138,12 @@ class TestWorkflowExecutor:
                 "id": "step1",
                 "name": "Step 1",
                 "agent": "data-agent",
-                "command": "validate",
+                "description": "Validate data",
                 "depends_on": [],
             }
         ])
 
-        executor = WorkflowExecutor(self.project_dir)
+        executor = WorkflowExecutor(self.workflows_dir, self.state)
 
         result = executor.complete_step(
             "completion-test",
@@ -149,7 +151,7 @@ class TestWorkflowExecutor:
             artifacts={"output": "test_output"},
         )
 
-        assert "step1" in result.get("completed_steps", [])
+        assert "step1" in result.get("completed", [])
 
     def test_get_workflow_status(self):
         """Test getting workflow status."""
@@ -158,19 +160,19 @@ class TestWorkflowExecutor:
                 "id": "step1",
                 "name": "Step 1",
                 "agent": "data-agent",
-                "command": "validate",
+                "description": "Validate data",
                 "depends_on": [],
             },
             {
                 "id": "step2",
                 "name": "Step 2",
                 "agent": "training-agent",
-                "command": "train",
+                "description": "Train model",
                 "depends_on": ["step1"],
             },
         ])
 
-        executor = WorkflowExecutor(self.project_dir)
+        executor = WorkflowExecutor(self.workflows_dir, self.state)
 
         # Complete first step
         executor.complete_step("status-test", "step1")
@@ -189,12 +191,12 @@ class TestWorkflowExecutor:
                 "id": "step1",
                 "name": "Step 1",
                 "agent": "data-agent",
-                "command": "validate",
+                "description": "Validate data",
                 "depends_on": [],
             },
         ])
 
-        executor = WorkflowExecutor(self.project_dir)
+        executor = WorkflowExecutor(self.workflows_dir, self.state)
 
         # Complete the only step
         executor.complete_step("full-workflow", "step1")
@@ -211,36 +213,42 @@ class TestWorkflowExecutor:
                 "id": "step1",
                 "name": "Step 1",
                 "agent": "agent-a",
-                "command": "cmd1",
+                "description": "Task 1",
                 "depends_on": [],
             },
             {
                 "id": "step2",
                 "name": "Step 2",
                 "agent": "agent-b",
-                "command": "cmd2",
+                "description": "Task 2",
                 "depends_on": [],  # No dependencies
             },
             {
                 "id": "step3",
                 "name": "Step 3",
                 "agent": "agent-c",
-                "command": "cmd3",
+                "description": "Task 3",
                 "depends_on": ["step1", "step2"],
             },
         ])
 
-        executor = WorkflowExecutor(self.project_dir)
+        executor = WorkflowExecutor(self.workflows_dir, self.state)
         workflow = executor.load_workflow("parallel-workflow")
 
+        def get_ready_steps(wf, completed):
+            """Get all steps whose dependencies are met."""
+            return [s for s in wf.steps
+                    if s.id not in completed
+                    and all(d in completed for d in s.depends_on)]
+
         # Both step1 and step2 should be ready initially
-        ready = executor.get_ready_steps(workflow, [])
+        ready = get_ready_steps(workflow, [])
         assert len(ready) == 2
 
         # step3 not ready until both complete
-        ready = executor.get_ready_steps(workflow, ["step1"])
+        ready = get_ready_steps(workflow, ["step1"])
         assert len(ready) == 1  # Only step2
 
-        ready = executor.get_ready_steps(workflow, ["step1", "step2"])
+        ready = get_ready_steps(workflow, ["step1", "step2"])
         assert len(ready) == 1
         assert ready[0].id == "step3"

@@ -4,6 +4,7 @@ import pytest
 from pathlib import Path
 import tempfile
 import os
+from unittest.mock import patch
 
 from croak.core.secrets import SecretsManager
 from croak.core.paths import PathValidator, PathValidationError
@@ -15,17 +16,19 @@ class TestSecretsManager:
 
     def test_redact_vfrog_key(self):
         """Test redacting vfrog API keys."""
-        text = "Using key vfrog_abc123def456ghi789jkl012mno345"
+        # Key must have exactly 32 alphanumeric chars after vfrog_
+        text = "Using key vfrog_abcdefghijklmnopqrstuvwxyz012345"
         redacted = SecretsManager.redact(text)
         assert "vfrog_" not in redacted
-        assert "[VFROG_API_KEY]" in redacted
+        assert "VFROG_API_KEY" in redacted
 
     def test_redact_modal_token(self):
         """Test redacting Modal tokens."""
-        text = "Token: sk-abc123def456ghi789jkl012mno345pqr678"
+        # Key must have 32+ alphanumeric chars after sk-
+        text = "Token: sk-abcdefghijklmnopqrstuvwxyz0123456789"
         redacted = SecretsManager.redact(text)
         assert "sk-" not in redacted
-        assert "[MODAL_TOKEN]" in redacted
+        assert "MODAL_TOKEN" in redacted
 
     def test_redact_preserves_normal_text(self):
         """Test that normal text is preserved."""
@@ -35,7 +38,10 @@ class TestSecretsManager:
 
     def test_redact_multiple_secrets(self):
         """Test redacting multiple secrets."""
-        text = "Key1: vfrog_abc123def456ghi789jkl012mno345 Key2: sk-xyz789abc123def456ghi"
+        text = (
+            "Key1: vfrog_abcdefghijklmnopqrstuvwxyz012345 "
+            "Key2: sk-abcdefghijklmnopqrstuvwxyz0123456789"
+        )
         redacted = SecretsManager.redact(text)
         assert "vfrog_" not in redacted
         assert "sk-" not in redacted
@@ -44,9 +50,11 @@ class TestSecretsManager:
         """Test getting vfrog key from environment."""
         original = os.environ.get("VFROG_API_KEY")
         try:
-            os.environ["VFROG_API_KEY"] = "test_key_123"
+            # Key must be >= 20 chars and not start with sk-
+            test_key = "test_key_valid_abcdef01234"
+            os.environ["VFROG_API_KEY"] = test_key
             key = SecretsManager.get_vfrog_key()
-            assert key == "test_key_123"
+            assert key == test_key
         finally:
             if original:
                 os.environ["VFROG_API_KEY"] = original
@@ -71,11 +79,12 @@ class TestPathValidator:
     def test_validate_within_project(self):
         """Test validating path within project."""
         with tempfile.TemporaryDirectory() as tmpdir:
+            resolved_root = Path(tmpdir).resolve()
             validator = PathValidator(Path(tmpdir))
             subpath = Path(tmpdir) / "subdir" / "file.txt"
 
             validated = validator.validate_within_project(subpath)
-            assert validated.is_relative_to(tmpdir)
+            assert validated.is_relative_to(resolved_root)
 
     def test_validate_path_traversal_blocked(self):
         """Test that path traversal is blocked."""
@@ -98,7 +107,7 @@ class TestPathValidator:
             image_path.write_bytes(b'\xff\xd8\xff\xe0')  # JPEG magic bytes
 
             validated = validator.validate_image(image_path)
-            assert validated == image_path
+            assert validated == image_path.resolve()
 
     def test_validate_image_invalid_extension(self):
         """Test rejecting invalid image extensions."""
@@ -111,16 +120,16 @@ class TestPathValidator:
             with pytest.raises(PathValidationError):
                 validator.validate_image(text_path)
 
-    def test_validate_data_yaml(self):
-        """Test validating data.yaml files."""
+    def test_validate_config_yaml(self):
+        """Test validating config YAML files."""
         with tempfile.TemporaryDirectory() as tmpdir:
             validator = PathValidator(Path(tmpdir))
 
             yaml_path = Path(tmpdir) / "data.yaml"
             yaml_path.write_text("train: ./train\nval: ./val\nnames: [cat, dog]")
 
-            validated = validator.validate_data_yaml(yaml_path)
-            assert validated == yaml_path
+            validated = validator.validate_config(yaml_path)
+            assert validated == yaml_path.resolve()
 
 
 class TestSecureRunner:
@@ -156,8 +165,11 @@ class TestSecureRunner:
     def test_run_with_cwd(self):
         """Test running command in specific directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = SecureRunner.run(
-                ["python", "-c", "import os; print(os.getcwd())"],
-                cwd=Path(tmpdir)
-            )
-            assert tmpdir in result.stdout
+            # Mock safe_path to allow temp directory outside project root
+            with patch('croak.core.commands.safe_path', return_value=Path(tmpdir)):
+                result = SecureRunner.run(
+                    ["python", "-c", "import os; print(os.getcwd())"],
+                    cwd=Path(tmpdir)
+                )
+                resolved_tmpdir = str(Path(tmpdir).resolve())
+                assert tmpdir in result.stdout or resolved_tmpdir in result.stdout
