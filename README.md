@@ -46,17 +46,17 @@ cd croak
 # 1. Initialize a new project
 croak init
 
-# 2. Check your environment
+# 2. Check your environment (Python, GPU, vfrog CLI, etc.)
 croak doctor
 
 # 3. Add images to data/raw/ and scan them
 croak scan
 
 # 4. Follow the guided workflow
-croak prepare  # Data preparation & annotation
-croak train    # Model training (local or Modal.com GPU)
-croak evaluate # Model evaluation & diagnostics
-croak deploy   # Deploy to cloud (vfrog) or edge (TensorRT)
+croak annotate  # Annotate via vfrog SSAT or import from external tools
+croak train     # Train locally, on Modal.com, or on vfrog platform
+croak evaluate  # Evaluate model performance & diagnostics
+croak deploy    # Deploy to vfrog inference, Modal, or edge
 ```
 
 ### CLI Commands
@@ -67,12 +67,68 @@ croak deploy   # Deploy to cloud (vfrog) or edge (TensorRT)
 | `croak doctor` | Check environment and dependencies |
 | `croak scan` | Scan and analyze your image dataset |
 | `croak prepare` | Prepare dataset for training |
-| `croak train` | Configure and run model training |
+| `croak annotate` | Annotate images (vfrog SSAT or classic import) |
+| `croak train` | Train model (local GPU, Modal, or vfrog platform) |
 | `croak evaluate` | Evaluate trained model performance |
-| `croak deploy` | Deploy model to cloud or edge |
+| `croak deploy` | Deploy model to vfrog, Modal, or edge |
 | `croak status` | Show current pipeline status |
+| `croak vfrog setup` | Login to vfrog CLI and select organisation/project |
+| `croak vfrog status` | Show vfrog CLI auth and context status |
+| `croak next` | Advance to next SSAT iteration |
+| `croak history` | Show iteration history |
 | `croak upgrade` | Upgrade to latest version |
 | `croak help` | Show help |
+
+## Annotation Paths
+
+CROAK supports two annotation workflows. You are never locked into one path.
+
+### vfrog SSAT (recommended for ease of use)
+
+Iterative auto-annotation powered by the [vfrog CLI](https://github.com/vfrog/vfrog-cli). Upload dataset images, create a reference object, run SSAT (Synthetic Self-Annotation Technology) iterations, review labels in HALO, and train on vfrog's managed platform.
+
+```bash
+croak vfrog setup           # Login and select organisation/project
+croak annotate              # Guided SSAT workflow
+croak train --provider vfrog
+```
+
+### Classic (full control)
+
+Import annotations from external tools (CVAT, Label Studio, Roboflow, etc.) in YOLO, COCO, or VOC format. Train on your own GPU or on Modal.com.
+
+```bash
+croak annotate --method classic --format yolo --path ./annotations
+croak train --provider local    # or --provider modal
+```
+
+### Comparison
+
+|  | vfrog SSAT | Classic |
+|---|---|---|
+| **Annotation** | Auto-annotation + HALO review | External tools (CVAT, Label Studio, etc.) |
+| **Training** | vfrog managed platform | Local GPU or Modal.com |
+| **Deployment** | vfrog inference API | Edge (ONNX, TensorRT) or Modal |
+| **Setup** | `croak vfrog setup` | Bring your own annotations |
+| **Best for** | Getting started quickly | Full control over pipeline |
+
+## Training & Deployment
+
+### Training Providers
+
+| Provider | Command | Description |
+|----------|---------|-------------|
+| **Local** | `croak train --provider local` | Train on your own NVIDIA GPU |
+| **Modal** | `croak train --provider modal` | Serverless GPU via [Modal.com](https://modal.com) |
+| **vfrog** | `croak train --provider vfrog` | Managed training on vfrog platform (requires vfrog annotations) |
+
+### Deployment Targets
+
+| Target | Command | Description |
+|--------|---------|-------------|
+| **vfrog** | `croak deploy vfrog` | Managed inference API with auto-scaling |
+| **Edge** | `croak deploy edge` | Export to ONNX, TensorRT, CoreML, or TFLite |
+| **Modal** | `croak deploy modal` | Serverless inference via Modal.com |
 
 ## Using CROAK with Claude Code
 
@@ -97,10 +153,10 @@ Once initialized, these slash commands are available in Claude Code:
 | Command | Agent | What It Does |
 |---------|-------|--------------|
 | `/croak-router` | 🐸 Dispatcher | **Start here!** Pipeline coordinator that guides you through the workflow |
-| `/croak-data` | 📊 Scout | Scan directories, validate images, check annotations, prepare datasets |
-| `/croak-training` | 🎯 Coach | Configure training, select architectures, manage experiments |
+| `/croak-data` | 📊 Scout | Scan directories, validate images, manage vfrog SSAT or classic annotations |
+| `/croak-training` | 🎯 Coach | Configure training across local GPU, Modal, or vfrog platform |
 | `/croak-evaluation` | 📈 Judge | Evaluate models, analyze errors, generate reports |
-| `/croak-deployment` | 🚀 Shipper | Export models, deploy to cloud (vfrog) or edge (TensorRT) |
+| `/croak-deployment` | 🚀 Shipper | Deploy to vfrog inference, Modal serverless, or edge devices |
 
 #### Workflow Commands
 | Command | Description |
@@ -143,41 +199,60 @@ Claude Code discovers these files and makes them available as slash commands. Ea
 
 ## What CROAK Does
 
-CROAK provides structured workflows for computer vision model development:
+CROAK provides structured workflows for computer vision model development through five specialist agents:
 
-1. **Router Agent ("Dispatcher")** 🐸 - Coordinates the pipeline and routes requests to specialists
-2. **Data Agent ("Scout")** 📊 - Validates, formats, and manages your datasets
-3. **Training Agent ("Coach")** 🎯 - Configures and executes model training
-4. **Evaluation Agent ("Judge")** 📈 - Analyzes model performance with actionable insights
-5. **Deployment Agent ("Shipper")** 🚀 - Deploys to cloud (vfrog) or edge (CUDA/TensorRT)
+1. **Router Agent ("Dispatcher")** 🐸 - Coordinates the pipeline, routes requests to specialists, and tracks state
+2. **Data Agent ("Scout")** 📊 - Validates datasets, manages vfrog SSAT annotation or classic annotation import
+3. **Training Agent ("Coach")** 🎯 - Configures and executes training across local GPU, Modal, or vfrog platform
+4. **Evaluation Agent ("Judge")** 📈 - Analyzes model performance with actionable diagnostics and reports
+5. **Deployment Agent ("Shipper")** 🚀 - Deploys to vfrog inference API, Modal serverless, or edge devices (ONNX/TensorRT)
+
+Each agent has guardrails to prevent common mistakes, a knowledge base for domain expertise, and handoff contracts for passing context between stages.
 
 ## Requirements
 
 - **Node.js** 18.0.0+ (for CLI installer)
 - **Python** 3.10+ (for training/evaluation)
 - **Git** (recommended)
-- [vfrog.ai](https://vfrog.ai) account (for annotation and cloud deployment)
+- **[vfrog CLI](https://github.com/vfrog/vfrog-cli)** (for SSAT annotation and vfrog deployment - optional but recommended)
+- [vfrog.ai](https://vfrog.ai) account (for vfrog SSAT and inference)
 - NVIDIA GPU (optional - can use [Modal.com](https://modal.com) for cloud GPU)
+
+### vfrog CLI Setup
+
+The vfrog CLI is a standalone Go binary. It is not a Python package.
+
+```bash
+# Download from https://github.com/vfrog/vfrog-cli/releases
+chmod +x vfrog && sudo mv vfrog /usr/local/bin/
+
+# Login and configure via CROAK
+croak vfrog setup
+```
+
+Authentication is email/password based (via Supabase). The CLI stores auth tokens locally in `~/.vfrog/`.
 
 ### Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `VFROG_API_KEY` | vfrog.ai API key | For annotation/deployment |
+| `VFROG_API_KEY` | vfrog.ai API key for inference | Only for `croak deploy vfrog` / `vfrog inference` |
 | `MODAL_TOKEN_ID` | Modal.com token (via `modal setup`) | For cloud GPU training |
+
+> **Note:** `VFROG_API_KEY` is only needed for inference. Annotation, training, and other vfrog operations use CLI authentication (`croak vfrog setup`).
 
 ## Features
 
 ### v1.0 "Detection Core"
 
-- ✅ **Claude Code Integration** - Native slash commands for all agents and workflows
-- ✅ Object Detection workflows
-- ✅ YOLO family (v8, v11) and RT-DETR architectures
-- ✅ vfrog.ai integration for annotation and cloud deployment
-- ✅ Modal.com integration for GPU training
-- ✅ Edge deployment (ONNX, TensorRT, CUDA)
-- ✅ MLflow/W&B experiment tracking
-- ✅ Auto-generated `CLAUDE.md` project context
+- **Claude Code Integration** - Native slash commands for all agents and workflows
+- Object Detection workflows (YOLO v8/v11, RT-DETR)
+- vfrog CLI integration for SSAT annotation, platform training, and inference
+- Modal.com integration for serverless GPU training
+- Edge deployment (ONNX, TensorRT, CoreML, TFLite)
+- MLflow/W&B experiment tracking
+- Auto-generated `CLAUDE.md` project context
+- Dual-path design: vfrog SSAT (simple) or classic (full control)
 
 ## Project Structure
 
@@ -250,13 +325,35 @@ pip install modal
 modal setup
 ```
 
-### vfrog API key not working
+### vfrog CLI not found
 
-1. Verify the key at https://vfrog.ai/settings/api
-2. Ensure the environment variable is set:
+1. Download the binary from [vfrog CLI releases](https://github.com/vfrog/vfrog-cli/releases)
+2. Make it executable and add to PATH:
    ```bash
-   export VFROG_API_KEY=your_api_key_here
+   chmod +x vfrog
+   sudo mv vfrog /usr/local/bin/
+   vfrog version  # Verify
    ```
+
+### vfrog not authenticated
+
+Run the interactive setup to login and configure your context:
+
+```bash
+croak vfrog setup
+```
+
+This walks you through email/password login, organisation selection, and project selection.
+
+### vfrog context not set
+
+Check your current vfrog status:
+
+```bash
+croak vfrog status
+```
+
+If organisation or project are missing, run `croak vfrog setup` again.
 
 ## License
 
