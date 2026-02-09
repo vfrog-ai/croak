@@ -58,6 +58,9 @@ agent:
       - id: "project_initialization"
         name: "Project Initialization"
         description: "Initialize new CROAK project with config and state files"
+      - id: "vfrog_setup"
+        name: "vfrog Platform Setup"
+        description: "Guide user through vfrog CLI login, organisation selection, and project configuration"
 
   menu:
     commands:
@@ -143,6 +146,29 @@ agent:
         mutates_state: false
         requires_confirmation: false
 
+      - trigger: "vfrog setup"
+        aliases:
+          - "setup vfrog"
+          - "connect vfrog"
+          - "vfrog login"
+        cli: "croak vfrog setup"
+        description: "Interactive vfrog CLI setup (login, select org/project)"
+        type: "workflow"
+        capability: "vfrog_setup"
+        mutates_state: true
+        requires_confirmation: false
+
+      - trigger: "vfrog status"
+        aliases:
+          - "vfrog config"
+          - "vfrog info"
+        cli: "croak vfrog status"
+        description: "Show vfrog auth and config status"
+        type: "query"
+        capability: "vfrog_setup"
+        mutates_state: false
+        requires_confirmation: false
+
   critical_actions:
     items:
       - id: "never_make_domain_decisions"
@@ -180,6 +206,14 @@ agent:
         when: "during_request_handling"
         violation: "warning"
 
+  vfrog_commands:
+    - "vfrog version"
+    - "vfrog config show --json"
+    - "vfrog organisations list --json"
+    - "vfrog config set organisation --organisation_id <id>"
+    - "vfrog projects list --json"
+    - "vfrog config set project --project_id <id>"
+
   guardrails:
     checks:
       - id: "project_initialized"
@@ -213,6 +247,14 @@ agent:
         condition: "config.yaml contains all required fields (project_name, task_type)"
         severity: "error"
         error_message: "Configuration incomplete. Missing required fields: {fields}. Edit .croak/config.yaml to add them."
+
+      - id: "vfrog_context_set"
+        name: "vfrog Context Configured"
+        check: "vfrog_org_and_project_set"
+        trigger: "before_vfrog_command"
+        condition: "vfrog config show --json returns organisation_id and project_id"
+        severity: "error"
+        error_message: "vfrog context not configured. Run 'croak vfrog setup' to login and select organisation/project."
 
       - id: "no_circular_state"
         name: "No Circular State"

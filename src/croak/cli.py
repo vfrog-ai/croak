@@ -184,15 +184,211 @@ def status():
 
 
 @main.command()
+@click.option("--fix", is_flag=True, help="Attempt automatic fixes for issues found")
+def doctor(fix):
+    """Check environment and dependencies."""
+    console.print(Panel.fit(
+        "[bold]Environment Check[/bold]",
+        title="🔍 CROAK Doctor"
+    ))
+
+    issues = []
+    warnings_list = []
+
+    # --- Python Environment ---
+    console.print("\n[bold]Python Environment[/bold]")
+    console.print("[dim]" + "─" * 40 + "[/dim]")
+
+    import platform
+    py_version = platform.python_version()
+    py_ok = sys.version_info >= (3, 10)
+    _doctor_check("Python " + py_version, py_ok)
+    if not py_ok:
+        issues.append("Python 3.10+ required")
+
+    # Check key packages
+    for pkg_name, required in [
+        ("ultralytics", True), ("torch", True), ("modal", False),
+        ("pydantic", True), ("pyyaml", True), ("rich", True),
+    ]:
+        try:
+            __import__(pkg_name.replace("-", "_"))
+            _doctor_check(f"  {pkg_name}", True)
+        except ImportError:
+            label = "required" if required else "optional"
+            _doctor_check(f"  {pkg_name}", False, label)
+            if required:
+                issues.append(f"Missing required package: {pkg_name}")
+            else:
+                warnings_list.append(f"Optional package not installed: {pkg_name}")
+
+    # --- GPU ---
+    console.print("\n[bold]GPU & Compute[/bold]")
+    console.print("[dim]" + "─" * 40 + "[/dim]")
+
+    try:
+        import subprocess
+        gpu_result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=10
+        )
+        if gpu_result.returncode == 0:
+            parts = gpu_result.stdout.strip().split(", ")
+            gpu_name = parts[0].strip() if parts else "Unknown"
+            vram_mb = int(parts[1].strip()) if len(parts) > 1 else 0
+            vram_gb = vram_mb / 1024
+            _doctor_check(f"NVIDIA GPU ({gpu_name})", True)
+            _doctor_check(f"  VRAM: {vram_gb:.1f}GB", vram_gb >= 8)
+            if vram_gb < 8:
+                warnings_list.append("GPU VRAM < 8GB -- may need cloud GPU for larger models")
+        else:
+            _doctor_check("Local NVIDIA GPU", False, "optional")
+            console.print("[dim]    Will use Modal.com or vfrog for GPU training[/dim]")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        _doctor_check("Local NVIDIA GPU", False, "optional")
+        console.print("[dim]    Will use Modal.com or vfrog for GPU training[/dim]")
+
+    # Modal
+    try:
+        import subprocess
+        modal_result = subprocess.run(
+            ["modal", "token", "show"], capture_output=True, text=True, timeout=10
+        )
+        modal_ok = "Token" in modal_result.stdout or "authenticated" in modal_result.stdout
+        _doctor_check("Modal.com configured", modal_ok)
+        if not modal_ok:
+            warnings_list.append("Modal.com not configured. Run `modal setup` for cloud GPU.")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        _doctor_check("Modal.com SDK", False, "recommended")
+        warnings_list.append("Modal.com not available. Run `pip install modal && modal setup`.")
+
+    # --- vfrog CLI ---
+    console.print("\n[bold]vfrog Integration[/bold]")
+    console.print("[dim]" + "─" * 40 + "[/dim]")
+
+    from croak.integrations.vfrog import VfrogCLI
+
+    vfrog_installed = VfrogCLI.check_installed()
+    if vfrog_installed:
+        _doctor_check("vfrog CLI", True)
+
+        vfrog_auth = VfrogCLI.check_authenticated()
+        _doctor_check("  Authenticated", vfrog_auth)
+        if not vfrog_auth:
+            warnings_list.append("vfrog not authenticated. Run `croak vfrog setup`.")
+
+        config_result = VfrogCLI.get_config()
+        if config_result["success"] and isinstance(config_result["output"], dict):
+            cfg = config_result["output"]
+            org_set = bool(cfg.get("organisation_id"))
+            proj_set = bool(cfg.get("project_id"))
+            _doctor_check("  Organisation set", org_set)
+            _doctor_check("  Project set", proj_set)
+            if not org_set or not proj_set:
+                warnings_list.append("vfrog context incomplete. Run `croak vfrog setup`.")
+        else:
+            _doctor_check("  Context", False)
+            warnings_list.append("Could not read vfrog config.")
+
+        # API key for inference
+        import os
+        api_key_set = bool(os.environ.get("VFROG_API_KEY"))
+        _doctor_check("  API key (inference)", api_key_set, "optional")
+        if not api_key_set:
+            warnings_list.append("VFROG_API_KEY not set. Needed for vfrog inference.")
+    else:
+        _doctor_check("vfrog CLI", False, "recommended")
+        warnings_list.append("vfrog CLI not installed. Download: https://github.com/vfrog/vfrog-cli/releases")
+
+    # --- Project Status ---
+    console.print("\n[bold]Project Status[/bold]")
+    console.print("[dim]" + "─" * 40 + "[/dim]")
+
+    root = get_croak_root()
+    if root:
+        _doctor_check("CROAK initialized", True)
+        config_exists = (root / ".croak" / "config.yaml").exists()
+        _doctor_check("  Configuration file", config_exists)
+        if not config_exists:
+            issues.append("Missing config.yaml")
+        state_exists = (root / ".croak" / "pipeline-state.yaml").exists()
+        _doctor_check("  Pipeline state file", state_exists)
+        if not state_exists:
+            warnings_list.append("Missing pipeline-state.yaml")
+        agents_exist = (root / ".croak" / "agents").exists() or (root / "agents").exists()
+        _doctor_check("  Agent definitions", agents_exist)
+        if not agents_exist:
+            issues.append("Missing agents directory")
+    else:
+        _doctor_check("CROAK initialized", False)
+        issues.append("CROAK not initialized. Run `croak init` first.")
+
+    # --- Summary ---
+    console.print("\n[bold]Summary[/bold]")
+    console.print("[dim]" + "─" * 40 + "[/dim]")
+
+    if not issues and not warnings_list:
+        console.print("\n[green]All checks passed! Your environment is ready.[/green]\n")
+    else:
+        if issues:
+            console.print(f"\n[red]{len(issues)} issue(s) found:[/red]")
+            for issue in issues:
+                console.print(f"  [red]• {issue}[/red]")
+        if warnings_list:
+            console.print(f"\n[yellow]{len(warnings_list)} warning(s):[/yellow]")
+            for warning in warnings_list:
+                console.print(f"  [yellow]• {warning}[/yellow]")
+        console.print("")
+
+    if fix and issues:
+        console.print("[cyan]Attempting automatic fixes...[/cyan]\n")
+        import subprocess
+        for issue in issues:
+            if "Missing required package:" in issue:
+                pkg = issue.split(": ")[1]
+                console.print(f"  Installing {pkg}...")
+                try:
+                    subprocess.run([sys.executable, "-m", "pip", "install", pkg],
+                                   capture_output=True, check=True)
+                    console.print(f"  [green]Installed {pkg}[/green]")
+                except subprocess.CalledProcessError:
+                    console.print(f"  [red]Failed to install {pkg}[/red]")
+
+    if issues:
+        sys.exit(1)
+
+
+def _doctor_check(label: str, passed: bool, optional: str = None):
+    """Print a doctor check result."""
+    if passed:
+        icon = "[green]✓[/green]"
+    elif optional:
+        icon = "[yellow]○[/yellow]"
+    else:
+        icon = "[red]✗[/red]"
+    suffix = f" [dim]({optional})[/dim]" if optional and not passed else ""
+    console.print(f"  {icon} {label}{suffix}")
+
+
+@main.command()
 def help():
     """Show available commands."""
     help_text = """
 # CROAK Commands
 
+## Setup
+- `croak init` - Initialize new project
+- `croak vfrog setup` - Login and configure vfrog platform
+- `croak vfrog status` - Show vfrog connection status
+- `croak status` - Show pipeline state
+- `croak doctor` - Check environment and dependencies
+
 ## Data Preparation
 - `croak scan <path>` - Discover images and annotations
 - `croak validate` - Run data quality checks
-- `croak annotate` - Start vfrog annotation workflow
+- `croak annotate` - Annotate images (two methods):
+  - `--method vfrog` (default) - vfrog SSAT auto-annotation
+  - `--method classic` - Import from CVAT, Label Studio, etc.
 - `croak split` - Create train/val/test splits
 - `croak prepare` - Full data preparation pipeline
 
@@ -200,7 +396,10 @@ def help():
 - `croak recommend` - Get architecture recommendation
 - `croak configure` - Generate training config
 - `croak estimate` - Estimate training time/cost
-- `croak train` - Start training
+- `croak train` - Start training (three providers):
+  - `--provider local` (default) - Train on local GPU
+  - `--provider modal` - Train on Modal.com serverless GPU
+  - `--provider vfrog` - Train on vfrog platform
 - `croak resume` - Resume from checkpoint
 
 ## Evaluation
@@ -210,13 +409,14 @@ def help():
 - `croak report` - Generate evaluation report
 
 ## Deployment
-- `croak export` - Export model (--format onnx|tensorrt)
-- `croak deploy cloud` - Deploy to vfrog
-- `croak deploy edge` - Deploy to edge device
+- `croak export` - Export model (--format onnx|tensorrt|coreml|tflite)
+- `croak deploy modal` - Deploy to Modal.com endpoint
+- `croak deploy vfrog` - Test vfrog inference endpoint
+- `croak deploy edge` - Package for edge deployment
 
 ## Utility
-- `croak init` - Initialize new project
-- `croak status` - Show pipeline state
+- `croak next` - Show suggested next step
+- `croak history` - Show pipeline history
 - `croak help` - Show this help
 - `croak reset` - Reset pipeline state
     """
@@ -280,7 +480,10 @@ def next():
             console.print("\n[bold]Your next step:[/bold] Train your model\n")
             console.print("1. (Optional) Get architecture recommendation: [cyan]croak recommend[/cyan]")
             console.print("2. (Optional) Estimate training cost: [cyan]croak estimate[/cyan]")
-            console.print("3. Start training: [cyan]croak train[/cyan]")
+            console.print("3. Start training:")
+            console.print("   • Local GPU: [cyan]croak train --provider local[/cyan]")
+            console.print("   • Modal.com: [cyan]croak train --provider modal[/cyan]")
+            console.print("   • vfrog platform: [cyan]croak train --provider vfrog[/cyan]")
 
     elif state.current_stage == "evaluation" or "evaluation" not in state.stages_completed:
         console.print("\n[bold]Your next step:[/bold] Evaluate your model\n")
@@ -290,8 +493,9 @@ def next():
     elif state.current_stage == "deployment" or "deployment" not in state.stages_completed:
         console.print("\n[bold]Your next step:[/bold] Deploy your model\n")
         console.print("Options:")
-        console.print("  • Export for edge: [cyan]croak export --format onnx[/cyan]")
-        console.print("  • Deploy to cloud: [cyan]croak deploy cloud[/cyan]")
+        console.print("  • Export model: [cyan]croak export --format onnx[/cyan]")
+        console.print("  • Deploy to Modal.com: [cyan]croak deploy modal[/cyan]")
+        console.print("  • Test vfrog inference: [cyan]croak deploy vfrog --image <path>[/cyan]")
         console.print("  • Package for edge: [cyan]croak deploy edge[/cyan]")
 
     else:
@@ -300,6 +504,7 @@ def next():
         console.print("\nYou can:")
         console.print("  • Re-evaluate: [cyan]croak evaluate[/cyan]")
         console.print("  • Export to new format: [cyan]croak export --format <format>[/cyan]")
+        console.print("  • Deploy: [cyan]croak deploy modal|vfrog|edge[/cyan]")
         console.print("  • Start fresh: [cyan]croak reset[/cyan]")
 
 
@@ -474,12 +679,304 @@ def validate(path: str):
 
 
 @main.command()
-def annotate():
-    """Start vfrog annotation workflow."""
+@click.option("--method", type=click.Choice(["vfrog", "classic"]), default="vfrog",
+              help="Annotation method: vfrog (SSAT auto-annotation) or classic (import from external tools)")
+@click.option("--iteration-id", default=None, help="Resume existing vfrog iteration (vfrog only)")
+@click.option("--object-id", default=None, help="Target vfrog object for iteration (vfrog only)")
+@click.option("--random", "random_count", type=int, default=20,
+              help="Random dataset images for SSAT (vfrog only)")
+@click.option("--status", "check_status", is_flag=True, help="Check annotation status only")
+@click.option("--halo", is_flag=True, help="Open HALO URL for review (vfrog only)")
+@click.option("--format", "ann_format", type=click.Choice(["yolo", "coco", "voc"]),
+              default="yolo", help="Annotation format (classic only)")
+@click.option("--annotations-path", default=None, type=click.Path(),
+              help="Path to annotation files (classic only)")
+def annotate(method, iteration_id, object_id, random_count, check_status, halo,
+             ann_format, annotations_path):
+    """Annotate dataset images.
+
+    Two methods available:
+
+    \b
+    vfrog (default): Auto-annotation via vfrog SSAT. Handles annotation and
+    iterative refinement on the platform. Recommended for ease of use.
+
+    \b
+    classic: Import annotations from external tools (CVAT, Label Studio,
+    Roboflow, etc.) in YOLO, COCO, or VOC format.
+    """
     root = ensure_initialized()
-    console.print("Starting vfrog annotation workflow...")
-    console.print("[yellow]This command requires vfrog integration.[/yellow]")
-    console.print("Visit [cyan]https://vfrog.ai[/cyan] to set up annotation projects.")
+
+    if method == "vfrog":
+        _annotate_vfrog(root, iteration_id, object_id, random_count, check_status, halo)
+    else:
+        _annotate_classic(root, ann_format, annotations_path)
+
+
+def _annotate_vfrog(root, iteration_id, object_id, random_count, check_status, halo):
+    """vfrog SSAT annotation workflow."""
+    from croak.integrations.vfrog import VfrogCLI
+
+    # 1. Verify vfrog CLI is installed and authenticated
+    if not VfrogCLI.check_installed():
+        console.print("[red]vfrog CLI not installed.[/red]")
+        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        return
+
+    if not VfrogCLI.check_authenticated():
+        console.print("[red]Not logged in to vfrog.[/red]")
+        console.print("Run: [cyan]croak vfrog setup[/cyan]")
+        return
+
+    # 2. Verify context is set
+    config_result = VfrogCLI.get_config()
+    if config_result['success'] and isinstance(config_result['output'], dict):
+        cfg = config_result['output']
+        if not cfg.get('project_id'):
+            console.print("[red]No vfrog project selected.[/red]")
+            console.print("Run: [cyan]croak vfrog setup[/cyan]")
+            return
+    else:
+        console.print("[red]Could not read vfrog config.[/red]")
+        return
+
+    # Handle --halo: just show HALO URL
+    if halo:
+        if not iteration_id:
+            console.print("[red]--iteration-id required with --halo[/red]")
+            return
+        result = VfrogCLI.get_halo_url(iteration_id)
+        if result['success']:
+            url = result['output'] if isinstance(result['output'], str) else result.get('raw', '')
+            if isinstance(result['output'], dict):
+                url = result['output'].get('url', result['output'].get('halo_url', str(result['output'])))
+            console.print(f"\nHALO Review URL: [cyan]{url}[/cyan]")
+            console.print("Open this URL in your browser to review and correct annotations.")
+        else:
+            console.print(f"[red]Failed to get HALO URL: {result.get('error')}[/red]")
+        return
+
+    # Handle --status: check annotation status
+    if check_status:
+        iters_result = VfrogCLI.list_iterations(object_id)
+        if iters_result['success'] and isinstance(iters_result['output'], list):
+            table = Table(title="vfrog Iterations")
+            table.add_column("ID", style="cyan", max_width=36)
+            table.add_column("#", style="green")
+            table.add_column("Status", style="yellow")
+            table.add_column("Trained", style="dim")
+
+            for it in iters_result['output']:
+                table.add_row(
+                    str(it.get('id', '')),
+                    str(it.get('iteration_number', '')),
+                    str(it.get('status', '')),
+                    str(it.get('trained_status', '-')),
+                )
+            console.print(table)
+        else:
+            console.print(f"[yellow]No iterations found or error: {iters_result.get('error')}[/yellow]")
+        return
+
+    # Full SSAT workflow
+    console.print(Panel.fit(
+        "[bold]vfrog SSAT Annotation Workflow[/bold]\n\n"
+        "vfrog uses Semi-Supervised Active Training (SSAT) to auto-annotate\n"
+        "your images. Each iteration improves on the last.\n\n"
+        "Steps: Upload images → Create object → Run SSAT → Review in HALO",
+        title="🐸 Annotation"
+    ))
+
+    # If resuming an existing iteration
+    if iteration_id:
+        console.print(f"\nResuming iteration: [cyan]{iteration_id}[/cyan]")
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+            task = progress.add_task("Running SSAT auto-annotation...", total=None)
+            result = VfrogCLI.run_ssat(iteration_id, random_count=random_count)
+            progress.update(task, completed=True)
+
+        if result['success']:
+            console.print("[green]✓ SSAT complete[/green]")
+            halo_result = VfrogCLI.get_halo_url(iteration_id)
+            if halo_result['success']:
+                url = halo_result['output']
+                if isinstance(url, dict):
+                    url = url.get('url', url.get('halo_url', str(url)))
+                console.print(f"\nReview annotations in HALO: [cyan]{url}[/cyan]")
+        else:
+            console.print(f"[red]SSAT failed: {result.get('error')}[/red]")
+        return
+
+    # New annotation workflow
+    # Step 1: Check for dataset images
+    images_result = VfrogCLI.list_dataset_images()
+    image_count = 0
+    if images_result['success'] and isinstance(images_result['output'], list):
+        image_count = len(images_result['output'])
+
+    if image_count == 0:
+        console.print("\n[yellow]No dataset images uploaded yet.[/yellow]")
+        console.print("Upload images first:")
+        console.print("  [cyan]vfrog dataset_images upload <url1> <url2> ...[/cyan]")
+        console.print("\nNote: vfrog requires image URLs (not local files).")
+        console.print("Host your images on S3, GCS, or any public URL first.")
+        return
+
+    console.print(f"\n[green]✓[/green] {image_count} dataset images found")
+
+    # Step 2: Check for objects or create one
+    objects_result = VfrogCLI.list_objects()
+    objects = objects_result['output'] if objects_result['success'] and isinstance(objects_result['output'], list) else []
+
+    if not objects and not object_id:
+        console.print("\n[yellow]No objects (product images) found.[/yellow]")
+        console.print("Create an object first with:")
+        console.print("  [cyan]vfrog objects create <product_image_url> --label <name>[/cyan]")
+        console.print("\nThe object is the reference image of what you want to detect.")
+        return
+
+    if object_id:
+        target_object_id = object_id
+    else:
+        target_object_id = objects[0].get('id', '')
+        label = objects[0].get('label', 'unknown')
+        console.print(f"Using object: [cyan]{label}[/cyan] ({target_object_id[:8]}...)")
+
+    # Step 3: Create iteration
+    console.print(f"\nCreating iteration with {random_count} random images...")
+    iter_result = VfrogCLI.create_iteration(target_object_id, random_count=random_count)
+    if not iter_result['success']:
+        console.print(f"[red]Failed to create iteration: {iter_result.get('error')}[/red]")
+        return
+
+    new_iteration_id = ''
+    if isinstance(iter_result['output'], dict):
+        new_iteration_id = iter_result['output'].get('id', '')
+    console.print(f"[green]✓[/green] Iteration created: {new_iteration_id[:8]}...")
+
+    # Step 4: Run SSAT
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        task = progress.add_task("Running SSAT auto-annotation...", total=None)
+        ssat_result = VfrogCLI.run_ssat(new_iteration_id)
+        progress.update(task, completed=True)
+
+    if not ssat_result['success']:
+        console.print(f"[red]SSAT failed: {ssat_result.get('error')}[/red]")
+        return
+
+    console.print("[green]✓ SSAT auto-annotation complete[/green]")
+
+    # Step 5: Show HALO URL
+    halo_result = VfrogCLI.get_halo_url(new_iteration_id)
+    if halo_result['success']:
+        url = halo_result['output']
+        if isinstance(url, dict):
+            url = url.get('url', url.get('halo_url', str(url)))
+        console.print(f"\n[bold]Review your annotations in HALO:[/bold]")
+        console.print(f"  [cyan]{url}[/cyan]")
+        console.print("\nAfter reviewing, you can:")
+        console.print(f"  • Train on vfrog: [cyan]croak train --provider vfrog[/cyan]")
+        console.print(f"  • Next iteration: [cyan]croak annotate --iteration-id {new_iteration_id}[/cyan]")
+
+    # Update pipeline state
+    state = load_state(root)
+    state.annotation.source = "vfrog"
+    state.annotation.method = "ssat"
+    state.annotation.vfrog_iteration_id = new_iteration_id
+    state.annotation.vfrog_object_id = target_object_id
+    state.save(root / ".croak" / "pipeline-state.yaml")
+
+
+def _annotate_classic(root, ann_format, annotations_path):
+    """Classic annotation import workflow."""
+    console.print(Panel.fit(
+        "[bold]Classic Annotation Import[/bold]\n\n"
+        "Import annotations from external tools in YOLO, COCO, or VOC format.\n"
+        "Use this if you've annotated with CVAT, Label Studio, Roboflow, etc.",
+        title="🐸 Annotation"
+    ))
+
+    # Check for images
+    data_dir = root / "data"
+    raw_dir = data_dir / "raw"
+    if raw_dir.exists():
+        image_count = sum(1 for f in raw_dir.rglob("*") if f.suffix.lower() in {'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'})
+    else:
+        image_count = 0
+
+    if image_count == 0:
+        console.print("\n[yellow]No images found in data/raw/[/yellow]")
+        console.print("Add images first, then annotate them with your preferred tool.")
+        return
+
+    console.print(f"\n[green]✓[/green] {image_count} images found in data/raw/")
+
+    # Guide user to annotation path
+    if not annotations_path:
+        console.print("\n[bold]Supported annotation tools:[/bold]")
+        console.print("  • CVAT (export as YOLO or COCO)")
+        console.print("  • Label Studio (export as YOLO)")
+        console.print("  • Roboflow (export as YOLOv8)")
+        console.print("  • LabelImg (saves in YOLO or VOC)")
+        console.print("  • Any tool that exports YOLO, COCO, or VOC format")
+        console.print(f"\nExpected format: [cyan]{ann_format.upper()}[/cyan]")
+        console.print("")
+
+        annotations_path = click.prompt(
+            "Path to annotation files",
+            type=click.Path(exists=True),
+        )
+
+    ann_path = Path(annotations_path)
+    if not ann_path.exists():
+        console.print(f"[red]Path not found: {annotations_path}[/red]")
+        return
+
+    # Count annotation files
+    if ann_format == "yolo":
+        ann_files = list(ann_path.rglob("*.txt"))
+    elif ann_format == "coco":
+        ann_files = list(ann_path.rglob("*.json"))
+    elif ann_format == "voc":
+        ann_files = list(ann_path.rglob("*.xml"))
+    else:
+        ann_files = []
+
+    if not ann_files:
+        console.print(f"[red]No {ann_format.upper()} annotation files found in {annotations_path}[/red]")
+        return
+
+    console.print(f"[green]✓[/green] Found {len(ann_files)} {ann_format.upper()} annotation files")
+
+    # Copy annotations to data/annotations/
+    import shutil
+    dest = data_dir / "annotations"
+    dest.mkdir(parents=True, exist_ok=True)
+
+    copied = 0
+    for f in ann_files:
+        shutil.copy2(f, dest / f.name)
+        copied += 1
+
+    console.print(f"[green]✓[/green] Copied {copied} annotation files to data/annotations/")
+
+    # Update state
+    state = load_state(root)
+    state.annotation.source = "classic"
+    state.annotation.method = "manual"
+    state.annotation.format = ann_format
+    state.save(root / ".croak" / "pipeline-state.yaml")
+
+    console.print(Panel.fit(
+        "[green]Annotations imported![/green]\n\n"
+        f"Format: [cyan]{ann_format.upper()}[/cyan]\n"
+        f"Files: [cyan]{copied}[/cyan]\n\n"
+        "Next steps:\n"
+        "  1. Validate: [cyan]croak validate[/cyan]\n"
+        "  2. Split: [cyan]croak split[/cyan]\n"
+        "  3. Train: [cyan]croak train --provider local[/cyan]",
+        title="🐸 CROAK"
+    ))
 
 
 @main.command()
@@ -668,14 +1165,90 @@ def estimate(gpu: str):
 
 
 @main.command()
-@click.option("--local/--cloud", default=False, help="Train locally or on Modal.com")
-@click.option("--gpu", "-g", default="T4", help="GPU type for cloud training")
-@click.option("--epochs", "-e", default=None, type=int, help="Number of epochs")
-@click.option("--architecture", "-a", default=None, help="Model architecture")
-def train(local: bool, gpu: str, epochs: Optional[int], architecture: Optional[str]):
-    """Start model training."""
+@click.option("--provider", type=click.Choice(["local", "modal", "vfrog"]),
+              default="local", help="Training provider: local (GPU), modal (serverless), vfrog (platform)")
+@click.option("--gpu", "-g", default="T4", help="GPU type for Modal training")
+@click.option("--epochs", "-e", default=None, type=int, help="Number of epochs (local/modal only)")
+@click.option("--architecture", "-a", default=None, help="Model architecture (local/modal only)")
+@click.option("--iteration-id", default=None, help="vfrog iteration ID to train (vfrog only)")
+def train(provider: str, gpu: str, epochs: Optional[int], architecture: Optional[str],
+          iteration_id: Optional[str]):
+    """Start model training.
+
+    \b
+    Three providers available:
+      local  - Train on local GPU (full control over architecture/hyperparams)
+      modal  - Train on Modal.com serverless GPU (full control, cloud compute)
+      vfrog  - Train on vfrog platform (simple, vfrog handles everything)
+    """
     root = ensure_initialized()
 
+    if provider == "vfrog":
+        _train_vfrog(root, iteration_id)
+    else:
+        _train_classic(root, provider, gpu, epochs, architecture)
+
+
+def _train_vfrog(root, iteration_id):
+    """Train on vfrog platform."""
+    from croak.integrations.vfrog import VfrogCLI
+
+    if not VfrogCLI.check_installed():
+        console.print("[red]vfrog CLI not installed.[/red]")
+        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        return
+
+    if not VfrogCLI.check_authenticated():
+        console.print("[red]Not logged in to vfrog.[/red]")
+        console.print("Run: [cyan]croak vfrog setup[/cyan]")
+        return
+
+    # Get iteration ID from argument or state
+    if not iteration_id:
+        state = load_state(root)
+        iteration_id = getattr(state, 'vfrog_iteration_id', None)
+
+    if not iteration_id:
+        console.print("[red]No iteration ID specified.[/red]")
+        console.print("Either:")
+        console.print("  • Run [cyan]croak annotate --method vfrog[/cyan] first")
+        console.print("  • Or specify: [cyan]croak train --provider vfrog --iteration-id <id>[/cyan]")
+        return
+
+    console.print(Panel.fit(
+        f"[bold]vfrog Platform Training[/bold]\n\n"
+        f"Iteration: [cyan]{iteration_id[:12]}...[/cyan]\n"
+        f"Provider: [cyan]vfrog (platform-managed)[/cyan]\n\n"
+        "vfrog handles architecture, hyperparameters, and optimization.\n"
+        "Training progress is managed on the vfrog platform.",
+        title="🐸 CROAK Training"
+    ))
+
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        task = progress.add_task("Training on vfrog platform...", total=None)
+        result = VfrogCLI.train_iteration(iteration_id)
+        progress.update(task, completed=True)
+
+    if result['success']:
+        console.print("\n[green]✓ Training complete![/green]")
+
+        # Update state
+        state = load_state(root)
+        state.current_stage = "evaluation"
+        if "training" not in state.stages_completed:
+            state.stages_completed.append("training")
+        state.training_state.provider = "vfrog"
+        state.save(root / ".croak" / "pipeline-state.yaml")
+
+        console.print("\nNext steps:")
+        console.print("  • Test inference: [cyan]croak deploy vfrog --image <test-image>[/cyan]")
+        console.print("  • Next iteration: [cyan]croak annotate --method vfrog[/cyan]")
+    else:
+        console.print(f"\n[red]Training failed: {result.get('error')}[/red]")
+
+
+def _train_classic(root, provider, gpu, epochs, architecture):
+    """Train locally or on Modal (classic pipeline)."""
     from croak.training.trainer import TrainingOrchestrator
 
     orchestrator = TrainingOrchestrator(root)
@@ -687,16 +1260,17 @@ def train(local: bool, gpu: str, epochs: Optional[int], architecture: Optional[s
         console.print("[red]Error: No data.yaml found. Run 'croak prepare' first.[/red]")
         return
 
+    target_label = "Local GPU" if provider == "local" else f"Modal.com ({gpu})"
     console.print(Panel.fit(
         f"[bold]Training Configuration[/bold]\n\n"
         f"Architecture: [cyan]{config.get('architecture')}[/cyan]\n"
         f"Epochs: [cyan]{config.get('epochs')}[/cyan]\n"
         f"Batch size: [cyan]{config.get('batch_size')}[/cyan]\n"
-        f"Target: [cyan]{'Local' if local else f'Modal.com ({gpu})'}[/cyan]",
+        f"Provider: [cyan]{target_label}[/cyan]",
         title="🐸 CROAK Training"
     ))
 
-    if local:
+    if provider == "local":
         console.print("\n[bold]Starting local training...[/bold]")
         result = orchestrator.train_local(config)
     else:
@@ -712,9 +1286,11 @@ def train(local: bool, gpu: str, epochs: Optional[int], architecture: Optional[s
         # Update state
         state = load_state(root)
         state.current_stage = "evaluation"
-        state.stages_completed.append("training")
+        if "training" not in state.stages_completed:
+            state.stages_completed.append("training")
         state.artifacts.model.path = result.get("model_path")
         state.artifacts.model.architecture = config.get("architecture")
+        state.training_state.provider = provider
         state.save(root / ".croak" / "pipeline-state.yaml")
 
         console.print("\nNext: [cyan]croak evaluate[/cyan]")
@@ -978,12 +1554,12 @@ def deploy():
     pass
 
 
-@deploy.command()
+@deploy.command('modal')
 @click.option("--model", "-m", default=None, help="Model path")
 @click.option("--name", "-n", default="croak-detector", help="App name")
 @click.option("--gpu", "-g", default="T4", help="GPU type")
-def cloud(model: Optional[str], name: str, gpu: str):
-    """Deploy to Modal.com cloud."""
+def deploy_modal(model: Optional[str], name: str, gpu: str):
+    """Deploy to Modal.com serverless endpoint."""
     root = ensure_initialized()
     state = load_state(root)
 
@@ -1013,10 +1589,66 @@ def cloud(model: Optional[str], name: str, gpu: str):
         console.print(f"Deploy manually with: [cyan]modal deploy {result.get('script_path')}[/cyan]")
 
 
-@deploy.command()
+@deploy.command('vfrog')
+@click.option("--image", "-i", default=None, help="Test image path for inference")
+@click.option("--image-url", default=None, help="Test image URL for inference")
+@click.option("--api-key", default=None, help="vfrog API key (or set VFROG_API_KEY)")
+def deploy_vfrog(image, image_url, api_key):
+    """Verify vfrog model inference endpoint.
+
+    Once a model is trained via vfrog SSAT iterations, the inference
+    endpoint is automatically available. This command tests it.
+    """
+    root = ensure_initialized()
+
+    from croak.integrations.vfrog import VfrogCLI
+
+    if not VfrogCLI.check_installed():
+        console.print("[red]vfrog CLI not installed.[/red]")
+        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        return
+
+    if not image and not image_url:
+        console.print("[red]Provide a test image: --image <path> or --image-url <url>[/red]")
+        return
+
+    console.print("Testing vfrog inference endpoint...")
+
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        task = progress.add_task("Running inference...", total=None)
+        result = VfrogCLI.run_inference(
+            image_path=image,
+            image_url=image_url,
+            api_key=api_key,
+        )
+        progress.update(task, completed=True)
+
+    if result['success']:
+        console.print("\n[green]✓ Inference endpoint working![/green]")
+        output = result['output']
+        if isinstance(output, dict):
+            detections = output.get('detections', output.get('results', []))
+            if isinstance(detections, list):
+                console.print(f"Detections: [cyan]{len(detections)}[/cyan]")
+                for det in detections[:5]:
+                    label = det.get('class', det.get('label', 'unknown'))
+                    conf = det.get('confidence', det.get('score', 0))
+                    console.print(f"  • {label}: {conf:.2%}")
+                if len(detections) > 5:
+                    console.print(f"  ... and {len(detections) - 5} more")
+        elif result.get('raw'):
+            console.print(f"Response: {result['raw'][:500]}")
+    else:
+        console.print(f"\n[red]Inference failed: {result.get('error')}[/red]")
+        console.print("\nMake sure:")
+        console.print("  1. A model has been trained via [cyan]croak train --provider vfrog[/cyan]")
+        console.print("  2. VFROG_API_KEY is set or use [cyan]--api-key[/cyan]")
+
+
+@deploy.command('edge')
 @click.option("--model", "-m", default=None, help="Model path")
 @click.option("--formats", "-f", default="onnx", help="Export formats (comma-separated)")
-def edge(model: Optional[str], formats: str):
+def deploy_edge(model: Optional[str], formats: str):
     """Prepare edge deployment package."""
     root = ensure_initialized()
     state = load_state(root)
@@ -1045,6 +1677,166 @@ def edge(model: Optional[str], formats: str):
         console.print(f"Package directory: [cyan]{result['package_dir']}[/cyan]")
     else:
         console.print(f"\n[red]Package creation failed: {result.get('error')}[/red]")
+
+
+# ============================================================================
+# vfrog Platform Commands
+# ============================================================================
+
+
+@main.group()
+def vfrog():
+    """vfrog platform integration commands."""
+    pass
+
+
+@vfrog.command()
+def setup():
+    """Interactive vfrog CLI setup (login, select org/project)."""
+    from croak.integrations.vfrog import VfrogCLI
+
+    # 1. Check CLI is installed
+    if not VfrogCLI.check_installed():
+        console.print("[red]vfrog CLI not found.[/red]")
+        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        return
+
+    console.print("[green]✓[/green] vfrog CLI found\n")
+
+    # 2. Check if already authenticated
+    if VfrogCLI.check_authenticated():
+        console.print("[green]✓[/green] Already logged in")
+    else:
+        console.print("Logging in to vfrog...")
+        email = click.prompt("Email")
+        password = click.prompt("Password", hide_input=True)
+        result = VfrogCLI.login(email, password)
+        if not result['success']:
+            console.print(f"[red]Login failed: {result.get('error')}[/red]")
+            return
+        console.print("[green]✓[/green] Login successful\n")
+
+    # 3. List organisations, let user pick
+    orgs_result = VfrogCLI.list_organisations()
+    if not orgs_result['success']:
+        console.print(f"[red]Failed to list organisations: {orgs_result.get('error')}[/red]")
+        return
+
+    orgs = orgs_result['output'] if isinstance(orgs_result['output'], list) else []
+    if not orgs:
+        console.print("[yellow]No organisations found. Create one at https://platform.vfrog.ai[/yellow]")
+        return
+
+    console.print("[bold]Organisations:[/bold]")
+    for idx, org in enumerate(orgs):
+        name = org.get('name', org.get('id', 'Unknown'))
+        console.print(f"  [{idx + 1}] {name}")
+
+    choice = click.prompt("Select organisation", type=int, default=1)
+    if choice < 1 or choice > len(orgs):
+        console.print("[red]Invalid selection.[/red]")
+        return
+
+    org = orgs[choice - 1]
+    org_id = org.get('id', '')
+    result = VfrogCLI.set_organisation(org_id)
+    if not result['success']:
+        console.print(f"[red]Failed to set organisation: {result.get('error')}[/red]")
+        return
+    console.print(f"[green]✓[/green] Organisation set: {org.get('name', org_id)}\n")
+
+    # 4. List or create project
+    projects_result = VfrogCLI.list_projects()
+    projects = []
+    if projects_result['success'] and isinstance(projects_result['output'], list):
+        projects = projects_result['output']
+
+    if projects:
+        console.print("[bold]Projects:[/bold]")
+        for idx, proj in enumerate(projects):
+            title = proj.get('title', proj.get('id', 'Unknown'))
+            console.print(f"  [{idx + 1}] {title}")
+        console.print(f"  [{len(projects) + 1}] Create new project")
+
+        choice = click.prompt("Select project", type=int, default=1)
+        if choice == len(projects) + 1:
+            project_name = click.prompt("Project name")
+            create_result = VfrogCLI.create_project(project_name)
+            if not create_result['success']:
+                console.print(f"[red]Failed to create project: {create_result.get('error')}[/red]")
+                return
+            proj = create_result['output'] if isinstance(create_result['output'], dict) else {}
+        elif 1 <= choice <= len(projects):
+            proj = projects[choice - 1]
+        else:
+            console.print("[red]Invalid selection.[/red]")
+            return
+    else:
+        console.print("[dim]No projects found. Creating one...[/dim]")
+        project_name = click.prompt("Project name")
+        create_result = VfrogCLI.create_project(project_name)
+        if not create_result['success']:
+            console.print(f"[red]Failed to create project: {create_result.get('error')}[/red]")
+            return
+        proj = create_result['output'] if isinstance(create_result['output'], dict) else {}
+
+    project_id = proj.get('id', '')
+    result = VfrogCLI.set_project(project_id)
+    if not result['success']:
+        console.print(f"[red]Failed to set project: {result.get('error')}[/red]")
+        return
+    console.print(f"[green]✓[/green] Project set: {proj.get('title', project_id)}\n")
+
+    # 5. Save to CROAK config if initialized
+    root = get_croak_root()
+    if root:
+        config = CroakConfig.load(root / ".croak" / "config.yaml")
+        config.vfrog.project_id = project_id
+        config.vfrog.organisation_id = org_id
+        config.save(root / ".croak" / "config.yaml")
+        console.print("[green]✓[/green] vfrog config saved to .croak/config.yaml")
+
+    console.print(Panel.fit(
+        "[green]vfrog setup complete![/green]\n\n"
+        f"Organisation: [cyan]{org.get('name', org_id)}[/cyan]\n"
+        f"Project: [cyan]{proj.get('title', project_id)}[/cyan]\n\n"
+        "You can now use:\n"
+        "  [cyan]croak annotate[/cyan] - Start annotation workflow\n"
+        "  [cyan]croak train --provider vfrog[/cyan] - Train on vfrog\n"
+        "  [cyan]croak vfrog status[/cyan] - Check vfrog status",
+        title="🐸 vfrog"
+    ))
+
+
+@vfrog.command()
+def status():
+    """Show vfrog CLI config and auth status."""
+    from croak.integrations.vfrog import VfrogCLI
+
+    if not VfrogCLI.check_installed():
+        console.print("[red]vfrog CLI not installed.[/red]")
+        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        return
+
+    result = VfrogCLI.get_config()
+    if not result['success']:
+        console.print(f"[red]Failed to get vfrog config: {result.get('error')}[/red]")
+        return
+
+    output = result['output']
+    if isinstance(output, dict):
+        table = Table(title="vfrog Status")
+        table.add_column("Setting", style="cyan")
+        table.add_column("Value", style="green")
+
+        table.add_row("Authenticated", "Yes" if output.get('authenticated') else "[red]No[/red]")
+        table.add_row("Organisation", output.get('organisation_id', '[dim]Not set[/dim]'))
+        table.add_row("Project", output.get('project_id', '[dim]Not set[/dim]'))
+        table.add_row("Object", output.get('object_id', '[dim]Not set[/dim]'))
+
+        console.print(table)
+    else:
+        console.print(f"Config: {result.get('raw', 'No output')}")
 
 
 if __name__ == "__main__":

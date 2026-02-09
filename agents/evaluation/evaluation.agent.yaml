@@ -65,6 +65,9 @@ agent:
       - id: "degradation_analysis"
         name: "Degradation Analysis"
         description: "Diagnose why production performance differs from evaluation"
+      - id: "vfrog_inference_eval"
+        name: "vfrog Inference Evaluation"
+        description: "Evaluate trained vfrog model by running inference and analyzing results"
 
   menu:
     commands:
@@ -177,6 +180,18 @@ agent:
         mutates_state: false
         requires_confirmation: false
 
+      - trigger: "test vfrog"
+        aliases:
+          - "vfrog inference"
+          - "test vfrog model"
+          - "evaluate vfrog"
+        cli: "croak deploy vfrog"
+        description: "Evaluate vfrog-trained model via inference endpoint"
+        type: "action"
+        capability: "vfrog_inference_eval"
+        mutates_state: false
+        requires_confirmation: false
+
   critical_actions:
     items:
       - id: "test_set_only"
@@ -218,6 +233,11 @@ agent:
         rule: "ALWAYS analyze performance by object size (small/medium/large); size-based failure is the most common issue"
         when: "during_evaluation"
         violation: "warning"
+
+  vfrog_commands:
+    - "vfrog inference --api-key <key> --image <path> --json"
+    - "vfrog inference --api-key <key> --image_url <url> --json"
+    - "vfrog config show --json"
 
   guardrails:
     checks:

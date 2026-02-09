@@ -9,7 +9,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 
 import { checkPython, getPythonVersion, checkPythonPackage } from '../utils/python-check.js';
-import { checkVfrogKey } from '../utils/vfrog-setup.js';
+import { checkVfrogCLI, getVfrogVersion, checkVfrogAuth, checkVfrogContext } from '../utils/vfrog-setup.js';
 // IDE detection functions available for future use
 // import { detectIDEs, getIDEConfig } from '../utils/ide-setup.js';
 import { checkCompiledAgents } from '../utils/agent-compiler.js';
@@ -124,11 +124,33 @@ export async function doctorCommand(options) {
   console.log(chalk.bold('Integrations'));
   console.log(chalk.dim('─'.repeat(40)));
 
-  // vfrog
-  const vfrogKey = await checkVfrogKey();
-  printCheck('vfrog.ai API key', vfrogKey);
-  if (!vfrogKey) {
-    warnings.push('vfrog.ai API key not set. Required for annotation features.');
+  // vfrog CLI
+  const vfrogInstalled = await checkVfrogCLI();
+  if (vfrogInstalled) {
+    const vfrogVer = await getVfrogVersion();
+    printCheck(`vfrog CLI${vfrogVer ? ` (${vfrogVer})` : ''}`, true);
+
+    const vfrogAuth = await checkVfrogAuth();
+    printCheck('  vfrog authenticated', vfrogAuth);
+    if (!vfrogAuth) {
+      warnings.push('vfrog CLI not authenticated. Run `croak vfrog setup` to login.');
+    }
+
+    const vfrogCtx = await checkVfrogContext();
+    printCheck('  vfrog context (org + project)', vfrogCtx.configured);
+    if (!vfrogCtx.configured) {
+      warnings.push('vfrog organisation/project not set. Run `croak vfrog setup` to configure.');
+    }
+  } else {
+    printCheck('vfrog CLI', false, 'recommended');
+    warnings.push('vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases');
+  }
+
+  // vfrog API key (for inference)
+  const vfrogApiKey = !!process.env.VFROG_API_KEY;
+  printCheck('  vfrog API key (inference)', vfrogApiKey, 'optional');
+  if (!vfrogApiKey) {
+    warnings.push('VFROG_API_KEY not set. Needed for vfrog inference. Get key at https://platform.vfrog.ai');
   }
 
   // Git

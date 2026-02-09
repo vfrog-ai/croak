@@ -134,7 +134,19 @@ Dashboard:
 QUICK START
 ═══════════════════════════════════════════════════
 
-Python:
+vfrog CLI:
+```bash
+vfrog inference --api-key {api_key} --image image.jpg --json
+```
+
+cURL:
+```bash
+curl -X POST {endpoint_url} \
+  -H "Authorization: Bearer {api_key}" \
+  -F "image=@image.jpg"
+```
+
+Python (requires httpx):
 ```python
 import httpx
 
@@ -144,13 +156,6 @@ response = httpx.post(
     files={"image": open("image.jpg", "rb")}
 )
 print(response.json())
-```
-
-cURL:
-```bash
-curl -X POST {endpoint_url} \
-  -H "Authorization: Bearer {api_key}" \
-  -F "image=@image.jpg"
 ```
 
 ═══════════════════════════════════════════════════

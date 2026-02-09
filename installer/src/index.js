@@ -8,7 +8,7 @@ export { doctorCommand } from './commands/doctor.js';
 export { upgradeCommand } from './commands/upgrade.js';
 export { checkPython, getPythonVersion } from './utils/python-check.js';
 export { copyTemplates } from './utils/template-copy.js';
-export { setupVfrog } from './utils/vfrog-setup.js';
+export { checkVfrogCLI, checkVfrogAuth, checkVfrogContext, getVfrogConfig, getVfrogSetupHelp } from './utils/vfrog-setup.js';
 export { getIDEChoices, createIDEDirectories, getIDEConfig, detectIDEs } from './utils/ide-setup.js';
 export { generateAllCommands, generateAgentCommand, generateWorkflowCommand } from './utils/command-generator.js';
 export { generateClaudeMd, hasCroakSection, updateClaudeMd } from './utils/claude-md-generator.js';

@@ -44,7 +44,6 @@ dependencies = [
     "onnxruntime>=1.15.0",
     "click>=8.0.0",
     "rich>=13.0.0",
-    "httpx>=0.24.0",
     "pydantic>=2.0.0",
 ]
 
@@ -52,6 +51,7 @@ dependencies = [
 modal = ["modal>=0.50.0"]
 wandb = ["wandb>=0.15.0"]
 tensorrt = ["tensorrt>=8.6.0"]
+httpx = ["httpx>=0.24.0"]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -60,7 +60,7 @@ dev = [
     "pre-commit>=3.0.0",
 ]
 all = [
-    "croak-cv[modal,wandb,tensorrt,dev]"
+    "croak-cv[modal,wandb,tensorrt,httpx,dev]"
 ]
 
 [project.scripts]

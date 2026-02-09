@@ -33,7 +33,8 @@ agent:
       - Always validate before expensive operations (training, annotation)
       - Version datasets like code - you'll thank yourself later
       - Document data decisions for reproducibility
-      - vfrog handles annotation - trust the process, verify the results
+      - vfrog is the easiest path to quality annotations - recommend it first
+      - Classic annotation tools work too - support users who prefer them
       - When in doubt, visualize the data
       - Class imbalance is a silent killer - always check
 
@@ -53,8 +54,11 @@ agent:
         name: "Dataset Splitting"
         description: "Create stratified train/val/test splits preserving class distribution"
       - id: "vfrog_annotation"
-        name: "vfrog Annotation"
-        description: "Trigger and manage vfrog.ai annotation workflow for labeling"
+        name: "vfrog SSAT Annotation"
+        description: "Manage vfrog SSAT annotation workflow: upload dataset images, create objects, run iterations with auto-annotation, and guide HALO review. Recommended for ease of use."
+      - id: "classic_annotation"
+        name: "Classic Annotation Import"
+        description: "Import annotations from external tools (CVAT, Label Studio, Roboflow, etc.) in YOLO, COCO, or VOC format for local/Modal training"
       - id: "statistics_generation"
         name: "Statistics Generation"
         description: "Compute comprehensive dataset statistics and visualizations"
@@ -125,15 +129,63 @@ agent:
           - "label"
           - "get labels"
           - "start annotation"
-          - "send to vfrog"
           - "label images"
         cli: "croak annotate"
-        description: "Upload images to vfrog.ai for professional annotation"
+        description: "Annotate dataset images (defaults to vfrog SSAT; use --method classic for manual tools)"
         type: "workflow"
         workflow: "workflows/data-preparation/steps/step-04-annotate.md"
         capability: "vfrog_annotation"
         mutates_state: true
         requires_confirmation: true
+
+      - trigger: "annotate vfrog"
+        aliases:
+          - "send to vfrog"
+          - "ssat"
+          - "vfrog annotate"
+        cli: "croak annotate --method vfrog"
+        description: "Start vfrog SSAT annotation workflow (upload images, auto-annotate, HALO review)"
+        type: "workflow"
+        workflow: "workflows/data-preparation/steps/step-04-annotate.md"
+        capability: "vfrog_annotation"
+        mutates_state: true
+        requires_confirmation: true
+
+      - trigger: "annotate classic"
+        aliases:
+          - "import annotations"
+          - "manual annotation"
+          - "import labels"
+        cli: "croak annotate --method classic"
+        description: "Import annotations from external tools (CVAT, Label Studio, Roboflow) in YOLO/COCO/VOC format"
+        type: "workflow"
+        workflow: "workflows/data-preparation/steps/step-04-annotate.md"
+        capability: "classic_annotation"
+        mutates_state: true
+        requires_confirmation: true
+
+      - trigger: "upload images"
+        aliases:
+          - "upload to vfrog"
+          - "add dataset images"
+        cli: "croak vfrog upload"
+        description: "Upload dataset images to vfrog project (URL-based)"
+        type: "action"
+        capability: "vfrog_annotation"
+        mutates_state: true
+        requires_confirmation: true
+
+      - trigger: "halo"
+        aliases:
+          - "review annotations"
+          - "open halo"
+          - "annotation review"
+        cli: "croak annotate --halo"
+        description: "Open HALO URL for human annotation review (vfrog only)"
+        type: "query"
+        capability: "vfrog_annotation"
+        mutates_state: false
+        requires_confirmation: false
 
       - trigger: "stats"
         aliases:
@@ -203,10 +255,10 @@ agent:
         when: "before_handoff"
         violation: "error"
 
-      - id: "route_to_vfrog"
-        rule: "ALWAYS route annotation requests to vfrog.ai platform; never attempt manual annotation guidance"
+      - id: "recommend_vfrog_annotation"
+        rule: "RECOMMEND vfrog SSAT as the default annotation method for its simplicity and auto-annotation; support classic import if user prefers external tools"
         when: "during_annotation_request"
-        violation: "error"
+        violation: "warning"
 
       - id: "preserve_original_data"
         rule: "NEVER modify or delete original image files; always work with copies or create new output directories"
@@ -217,6 +269,22 @@ agent:
         rule: "ALWAYS verify that train/val/test splits together cover 100% of annotated images with no overlap"
         when: "after_splitting"
         violation: "error"
+
+  vfrog_commands:
+    - "vfrog dataset_images upload <urls> --json"
+    - "vfrog dataset_images list --json"
+    - "vfrog dataset_images delete --dataset_image_id <id>"
+    - "vfrog objects create <url> --label <label> --json"
+    - "vfrog objects list --json"
+    - "vfrog objects delete --object_id <id>"
+    - "vfrog iterations list --object_id <id> --json"
+    - "vfrog iterations create <object_id> --random <N> --json"
+    - "vfrog iterations ssat --iteration_id <id> --json"
+    - "vfrog iterations ssat --iteration_id <id> --random <N> --json"
+    - "vfrog iterations halo --iteration_id <id> --json"
+    - "vfrog iterations next --iteration_id <id> --json"
+    - "vfrog iterations restart --iteration_id <id> --json"
+    - "vfrog config show --json"
 
   guardrails:
     checks:
@@ -283,6 +351,30 @@ agent:
         condition: "no duplicate or near-duplicate class names"
         severity: "warning"
         error_message: "Potential class name inconsistencies detected: {classes}. Consider standardizing (e.g., 'Car' vs 'car' vs 'CAR')."
+
+      - id: "vfrog_cli_installed"
+        name: "vfrog CLI Installed"
+        check: "vfrog_binary_available"
+        trigger: "before_vfrog_annotation"
+        condition: "vfrog binary is available on PATH"
+        severity: "error"
+        error_message: "vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases"
+
+      - id: "vfrog_authenticated"
+        name: "vfrog Authenticated"
+        check: "vfrog_login_valid"
+        trigger: "before_vfrog_annotation"
+        condition: "vfrog config show --json shows authenticated: true"
+        severity: "error"
+        error_message: "Not logged in to vfrog. Run 'vfrog login' or 'croak vfrog setup' first."
+
+      - id: "vfrog_project_set"
+        name: "vfrog Project Set"
+        check: "vfrog_project_context"
+        trigger: "before_vfrog_annotation"
+        condition: "vfrog config show --json has non-empty project_id"
+        severity: "error"
+        error_message: "No vfrog project selected. Run 'croak vfrog setup' to select or create a project."
 
   handoffs:
     receives:

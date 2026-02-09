@@ -60,6 +60,12 @@ class SecureRunner:
         'git': ['--version', 'status', 'log', 'diff', 'rev-parse'],
         # YOLO/Ultralytics
         'yolo': None,  # Any YOLO command
+        # vfrog.ai CLI (Go binary)
+        'vfrog': [
+            'version', 'login', 'config', 'organisations', 'projects',
+            'dataset_images', 'objects', 'iterations', 'iteration',
+            'inference', 'completion',
+        ],
     }
 
     # Default timeout in seconds
@@ -90,11 +96,14 @@ class SecureRunner:
         # Check subcommand if restrictions exist
         allowed_sub = cls.ALLOWED_COMMANDS[base_cmd]
         if allowed_sub is not None and len(cmd) > 1:
-            # Check if first argument is an allowed subcommand
-            if cmd[1] not in allowed_sub:
-                # Allow if it's a flag that starts with -
-                if not cmd[1].startswith('-'):
-                    return False
+            # Find the first non-flag argument (the subcommand)
+            subcommand = next(
+                (arg for arg in cmd[1:] if not arg.startswith('-')),
+                None,
+            )
+            # If there's a non-flag subcommand, it must be allowed
+            if subcommand is not None and subcommand not in allowed_sub:
+                return False
 
         return True
 
@@ -280,6 +289,67 @@ class SecureRunner:
                 'success': False,
                 'output': None,
                 'error': str(e),
+            }
+
+    @classmethod
+    def run_vfrog(
+        cls,
+        args: List[str],
+        cwd: Optional[Path] = None,
+        timeout: int = DEFAULT_TIMEOUT,
+        json_output: bool = True,
+    ) -> Dict[str, Any]:
+        """Run vfrog CLI command securely.
+
+        Args:
+            args: Command arguments (e.g., ['projects', 'list']).
+            cwd: Working directory.
+            timeout: Timeout in seconds.
+            json_output: Append --json flag for machine-readable output.
+
+        Returns:
+            Dict with keys: success, output (parsed JSON or raw string),
+            raw (raw stdout), error (stderr on failure).
+        """
+        import json
+
+        cmd = ['vfrog'] + args
+        if json_output:
+            cmd.append('--json')
+
+        try:
+            result = cls.run(
+                cmd, cwd=cwd, capture_output=True,
+                timeout=timeout, check=False,
+            )
+
+            parsed = None
+            if result.stdout and json_output:
+                try:
+                    parsed = json.loads(result.stdout)
+                except json.JSONDecodeError:
+                    parsed = None
+
+            return {
+                'success': result.returncode == 0,
+                'output': parsed if parsed else result.stdout,
+                'raw': result.stdout,
+                'error': result.stderr if result.returncode != 0 else None,
+            }
+        except CommandExecutionError as e:
+            return {
+                'success': False,
+                'output': None,
+                'raw': None,
+                'error': str(e),
+            }
+        except FileNotFoundError:
+            return {
+                'success': False,
+                'output': None,
+                'raw': None,
+                'error': 'vfrog CLI not found. Install from: '
+                         'https://github.com/vfrog/vfrog-cli/releases',
             }
 
     @classmethod
