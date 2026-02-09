@@ -8,14 +8,14 @@ export { doctorCommand } from './commands/doctor.js';
 export { upgradeCommand } from './commands/upgrade.js';
 export { checkPython, getPythonVersion } from './utils/python-check.js';
 export { copyTemplates } from './utils/template-copy.js';
-export { checkVfrogCLI, checkVfrogAuth, checkVfrogContext, getVfrogConfig, getVfrogSetupHelp } from './utils/vfrog-setup.js';
+export { checkVfrogCLI, checkVfrogAuth, checkVfrogContext, getVfrogConfig, getVfrogSetupHelp, syncVfrogConfig } from './utils/vfrog-setup.js';
 export { getIDEChoices, createIDEDirectories, getIDEConfig, detectIDEs } from './utils/ide-setup.js';
 export { generateAllCommands, generateAgentCommand, generateWorkflowCommand } from './utils/command-generator.js';
 export { generateClaudeMd, hasCroakSection, updateClaudeMd } from './utils/claude-md-generator.js';
 export { compileAllAgents, compileAgent, checkCompiledAgents } from './utils/agent-compiler.js';
 
 // Version
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 // Constants
 export const CROAK_DIR = '.croak';
@@ -32,7 +32,11 @@ export const DEFAULT_CONFIG = {
   },
   vfrog: {
     api_key_env: 'VFROG_API_KEY',
+    cli_path: null,
+    organisation_id: '',
     project_id: '',
+    object_id: '',
+    current_iteration_id: '',
   },
   compute: {
     provider: 'modal',
@@ -62,16 +66,9 @@ export const DEFAULT_CONFIG = {
     },
   },
   deployment: {
-    cloud: {
-      provider: 'vfrog',
-      auto_scaling: true,
-      min_replicas: 1,
-      max_replicas: 5,
-    },
-    edge: {
-      format: 'tensorrt',
-      precision: 'fp16',
-    },
+    cloud_provider: 'vfrog',
+    edge_format: 'tensorrt',
+    precision: 'fp16',
   },
   agents: {
     verbose: true,
@@ -79,18 +76,38 @@ export const DEFAULT_CONFIG = {
   },
 };
 
-// Default pipeline state
+// Default pipeline state (matches Python PipelineState model)
 export const DEFAULT_STATE = {
   version: '1.0',
   current_stage: 'uninitialized',
   stages_completed: [],
-  experiments: [],
-  warnings: [],
+  annotation: {
+    source: null,
+    method: null,
+    format: null,
+    vfrog_iteration_id: null,
+    vfrog_object_id: null,
+  },
+  training_state: {
+    provider: null,
+    architecture: null,
+    experiment_id: null,
+    vfrog_iteration_id: null,
+  },
+  deployment_state: {
+    target: null,
+    vfrog_api_key_env: 'VFROG_API_KEY',
+  },
   artifacts: {
     dataset: null,
-    training: null,
+    model: null,
     evaluation: null,
     deployment: null,
   },
+  experiments: [],
+  warnings: [],
+  errors: [],
+  workflow_progress: {},
+  workflow_artifacts: {},
   last_updated: new Date().toISOString(),
 };

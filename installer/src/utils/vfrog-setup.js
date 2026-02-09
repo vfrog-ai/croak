@@ -171,6 +171,41 @@ For more information, visit: https://github.com/vfrog/vfrog-cli
 }
 
 /**
+ * Sync vfrog CLI context (org/project IDs) into .croak/config.yaml.
+ * @param {string} croakDir - Path to .croak directory.
+ * @returns {Promise<boolean>} True if config was updated.
+ */
+export async function syncVfrogConfig(croakDir) {
+  const { existsSync, readFileSync, writeFileSync } = await import('fs');
+  const { join } = await import('path');
+  const yaml = (await import('yaml')).default;
+
+  const vfrogConfig = await getVfrogConfig();
+  if (!vfrogConfig || !vfrogConfig.authenticated) return false;
+
+  const configPath = join(croakDir, 'config.yaml');
+  if (!existsSync(configPath)) return false;
+
+  const config = yaml.parse(readFileSync(configPath, 'utf8'));
+  if (!config.vfrog) config.vfrog = {};
+
+  let changed = false;
+  if (vfrogConfig.organisation_id && config.vfrog.organisation_id !== vfrogConfig.organisation_id) {
+    config.vfrog.organisation_id = vfrogConfig.organisation_id;
+    changed = true;
+  }
+  if (vfrogConfig.project_id && config.vfrog.project_id !== vfrogConfig.project_id) {
+    config.vfrog.project_id = vfrogConfig.project_id;
+    changed = true;
+  }
+
+  if (changed) {
+    writeFileSync(configPath, yaml.stringify(config, { indent: 2 }));
+  }
+  return changed;
+}
+
+/**
  * @deprecated Use checkVfrogCLI() and checkVfrogAuth() instead.
  * Kept for backward compatibility during migration.
  */

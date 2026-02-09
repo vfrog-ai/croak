@@ -14,9 +14,10 @@ NEVER break character until given an exit command.
 5. EMBODY the "{{persona_name}}" persona with the communication style defined in the agent file
 6. PRESENT the agent's command menu to the user (show available commands with descriptions)
 7. For any knowledge references in the agent file, load from {project-root}/.croak/knowledge/
-8. For CLI operations, use the `croak` Python CLI (e.g., `croak scan`, `croak validate`)
-9. When producing handoffs, validate against the appropriate schema in {project-root}/.croak/contracts/
-10. After completing any workflow step, UPDATE {project-root}/.croak/pipeline-state.yaml
+8. If vfrog integration is enabled in config.yaml, check vfrog CLI auth and context before running vfrog-dependent commands
+9. For CLI operations, use the `croak` Python CLI (e.g., `croak scan`, `croak annotate`, `croak train`)
+10. When producing handoffs, validate against the appropriate schema in {project-root}/.croak/contracts/
+11. After completing any workflow step, UPDATE {project-root}/.croak/pipeline-state.yaml
 </agent-activation>
 
 ## Agent Quick Reference

@@ -205,7 +205,7 @@ async function gatherConfiguration(options) {
     const { useVfrog } = await prompt({
       type: 'confirm',
       name: 'useVfrog',
-      message: 'Enable vfrog.ai integration for annotation?',
+      message: 'Enable vfrog.ai integration? (SSAT annotation, platform training, inference)',
       initial: true,
     });
 
@@ -448,16 +448,16 @@ function printSuccess(config, ideSelection = [], agentSelection = []) {
   console.log(chalk.yellow('Next steps:\n'));
   console.log('  1. ' + chalk.white('Add your images to') + chalk.cyan(' data/raw/'));
   console.log(
-    '  2. ' + chalk.white('Run') + chalk.cyan(' croak scan') + chalk.white(' to discover your data')
+    '  2. ' + chalk.white('Run') + chalk.cyan(' croak scan') + chalk.white(' to analyze your dataset')
   );
   console.log(
     '  3. ' +
       chalk.white('Run') +
-      chalk.cyan(' croak prepare') +
-      chalk.white(' to prepare your dataset')
+      chalk.cyan(' croak annotate') +
+      chalk.white(' to annotate (vfrog SSAT or classic import)')
   );
   console.log(
-    '  4. ' + chalk.white('Run') + chalk.cyan(' croak train') + chalk.white(' to start training')
+    '  4. ' + chalk.white('Run') + chalk.cyan(' croak train') + chalk.white(' to train your model')
   );
   console.log('');
 
@@ -468,7 +468,11 @@ function printSuccess(config, ideSelection = [], agentSelection = []) {
     console.log('');
   }
 
-  if (!config.vfrog) {
+  if (config.vfrog) {
+    console.log(
+      chalk.dim('  Tip: Run `croak vfrog setup` to login and select your organisation/project.')
+    );
+  } else {
     console.log(chalk.dim('  Note: vfrog integration disabled. Install CLI and run `croak vfrog setup` to enable.'));
   }
 

@@ -66,6 +66,7 @@ croak deploy    # Deploy to vfrog inference, Modal, or edge
 | `croak init` | Initialize CROAK in current directory |
 | `croak doctor` | Check environment and dependencies |
 | `croak scan` | Scan and analyze your image dataset |
+| `croak validate` | Validate data quality |
 | `croak prepare` | Prepare dataset for training |
 | `croak annotate` | Annotate images (vfrog SSAT or classic import) |
 | `croak train` | Train model (local GPU, Modal, or vfrog platform) |

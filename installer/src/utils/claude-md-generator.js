@@ -155,19 +155,28 @@ This is a computer vision project managed by the CROAK framework
 Use slash commands to activate specialized agents:
 
 - \`/croak-router\` — Pipeline coordinator (start here for guidance)
-- \`/croak-data\` — Data scanning, validation, and preparation
-- \`/croak-training\` — Model training configuration and execution
+- \`/croak-data\` — Scan, validate, annotate (vfrog SSAT or classic import)
+- \`/croak-training\` — Train on local GPU, Modal.com, or vfrog platform
 - \`/croak-evaluation\` — Model evaluation and error analysis
-- \`/croak-deployment\` — Model export and deployment
+- \`/croak-deployment\` — Deploy to vfrog inference, Modal serverless, or edge
 
 ## CROAK Workflows
 
 Run end-to-end workflows:
 
-- \`/croak-data-preparation\` — Full data pipeline
-- \`/croak-model-training\` — Training pipeline
-- \`/croak-model-evaluation\` — Evaluation pipeline
-- \`/croak-model-deployment\` — Deployment pipeline
+- \`/croak-data-preparation\` — Full data pipeline (scan → validate → annotate → split → export)
+- \`/croak-model-training\` — Training pipeline (recommend → configure → execute → handoff)
+- \`/croak-model-evaluation\` — Evaluation pipeline (evaluate → analyze → diagnose → report)
+- \`/croak-model-deployment\` — Deployment pipeline (export → optimize → deploy → verify)
+
+## Annotation & Training Paths
+
+CROAK supports two annotation workflows:
+
+- **vfrog SSAT** — Auto-annotation via vfrog CLI. Upload images, run SSAT iterations, review in HALO. Train on vfrog's managed platform.
+- **Classic** — Import annotations from external tools (CVAT, Label Studio, Roboflow) in YOLO/COCO/VOC format. Train on local GPU or Modal.com.
+
+> \`VFROG_API_KEY\` is only needed for inference (\`croak deploy vfrog\`). Annotation and training use CLI authentication (\`croak vfrog setup\`).
 
 ## Pipeline State
 
@@ -184,13 +193,35 @@ Always check pipeline state before suggesting next steps.
 
 ## CLI Commands
 
+The \`croak\` CLI provides these commands:
+
 - \`croak scan\` — Scan data directory for images
 - \`croak validate\` — Validate data quality
-- \`croak prepare\` — Run full data preparation workflow
-- \`croak train\` — Start model training
-- \`croak evaluate\` — Run model evaluation
-- \`croak export\` — Export model for deployment
-- \`croak deploy\` — Deploy model to cloud or edge
+- \`croak prepare\` — Prepare dataset for training
+- \`croak annotate\` — Annotate images (vfrog SSAT or classic import)
+- \`croak train\` — Train model (local GPU, Modal, or vfrog platform)
+- \`croak evaluate\` — Evaluate model performance
+- \`croak deploy\` — Deploy to vfrog inference, Modal, or edge
 - \`croak status\` — Check pipeline status
+- \`croak vfrog setup\` — Login to vfrog CLI and select organisation/project
+- \`croak vfrog status\` — Show vfrog CLI auth and context status
+- \`croak next\` — Advance to next SSAT iteration
+- \`croak history\` — Show iteration history
+
+## vfrog CLI
+
+The vfrog CLI is a standalone Go binary (not a Python package). Authentication is email/password based via Supabase. The CLI stores auth tokens in \`~/.vfrog/\`.
+
+Context hierarchy: organisation → project → object → iteration.
+
+Setup: \`croak vfrog setup\` (walks through login, org selection, project selection).
+
+## Conventions
+
+- Always validate data before training
+- Use handoff contracts for inter-agent communication
+- Update pipeline-state.yaml after completing any workflow stage
+- When in doubt, run \`croak status\` to check current state
+- Consult the knowledge base in \`.croak/knowledge/\` for domain guidance
 `;
 }

@@ -9,7 +9,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 
 import { checkPython, getPythonVersion, checkPythonPackage } from '../utils/python-check.js';
-import { checkVfrogCLI, getVfrogVersion, checkVfrogAuth, checkVfrogContext } from '../utils/vfrog-setup.js';
+import { checkVfrogCLI, getVfrogVersion, checkVfrogAuth, checkVfrogContext, getVfrogConfig } from '../utils/vfrog-setup.js';
 // IDE detection functions available for future use
 // import { detectIDEs, getIDEConfig } from '../utils/ide-setup.js';
 import { checkCompiledAgents } from '../utils/agent-compiler.js';
@@ -141,6 +141,24 @@ export async function doctorCommand(options) {
     if (!vfrogCtx.configured) {
       warnings.push('vfrog organisation/project not set. Run `croak vfrog setup` to configure.');
     }
+
+    // Check if .croak/config.yaml is in sync with vfrog CLI context
+    if (vfrogCtx.configured && existsSync(join(CROAK_DIR, 'config.yaml'))) {
+      const yaml = (await import('yaml')).default;
+      const { readFileSync } = await import('fs');
+      try {
+        const config = yaml.parse(readFileSync(join(CROAK_DIR, 'config.yaml'), 'utf8'));
+        const configOrg = config?.vfrog?.organisation_id || '';
+        const configProj = config?.vfrog?.project_id || '';
+        const inSync = configOrg === vfrogCtx.organisation_id && configProj === vfrogCtx.project_id;
+        printCheck('  vfrog config in sync', inSync);
+        if (!inSync) {
+          warnings.push('vfrog config out of sync with CLI. Run `croak vfrog setup` to update.');
+        }
+      } catch {
+        // config.yaml parse error — skip sync check
+      }
+    }
   } else {
     printCheck('vfrog CLI', false, 'recommended');
     warnings.push('vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases');
@@ -150,7 +168,7 @@ export async function doctorCommand(options) {
   const vfrogApiKey = !!process.env.VFROG_API_KEY;
   printCheck('  vfrog API key (inference)', vfrogApiKey, 'optional');
   if (!vfrogApiKey) {
-    warnings.push('VFROG_API_KEY not set. Needed for vfrog inference. Get key at https://platform.vfrog.ai');
+    warnings.push('VFROG_API_KEY not set. Only needed for `croak deploy vfrog` / inference.');
   }
 
   // Git
@@ -184,7 +202,7 @@ export async function doctorCommand(options) {
     }
   } else {
     printCheck('Claude Code', false, 'optional');
-    console.log(chalk.dim('    No .claude/commands directory found'));
+    console.log(chalk.dim('    No .claude/skills directory found'));
   }
 
   // Compiled agents
