@@ -14,7 +14,7 @@ import yaml from 'yaml';
 
 import { checkPython, getPythonVersion } from '../utils/python-check.js';
 import { copyTemplates } from '../utils/template-copy.js';
-import { checkVfrogKey } from '../utils/vfrog-setup.js';
+import { checkVfrogCLI, checkVfrogAuth, checkVfrogContext } from '../utils/vfrog-setup.js';
 import { getIDEChoices, getIDEConfig } from '../utils/ide-setup.js';
 import { generateAllCommands } from '../utils/command-generator.js';
 import { generateClaudeMd } from '../utils/claude-md-generator.js';
@@ -134,14 +134,30 @@ export async function initCommand(options) {
       }
     }
 
-    // Setup vfrog if enabled
-    if (options.vfrog !== false && config.vfrog?.api_key_env) {
-      spinner.start('Checking vfrog.ai integration...');
-      const hasVfrog = await checkVfrogKey();
-      if (hasVfrog) {
-        spinner.succeed('vfrog.ai integration ready');
+    // Check vfrog CLI integration
+    if (options.vfrog !== false) {
+      spinner.start('Checking vfrog CLI...');
+      const cliInstalled = await checkVfrogCLI();
+      if (cliInstalled) {
+        spinner.succeed('vfrog CLI found');
+
+        spinner.start('Checking vfrog authentication...');
+        const isAuth = await checkVfrogAuth();
+        if (isAuth) {
+          spinner.succeed('vfrog authenticated');
+
+          spinner.start('Checking vfrog context...');
+          const ctx = await checkVfrogContext();
+          if (ctx.configured) {
+            spinner.succeed('vfrog context configured (org + project set)');
+          } else {
+            spinner.warn('vfrog context not set. Run `croak vfrog setup` to select org/project.');
+          }
+        } else {
+          spinner.warn('vfrog not authenticated. Run `croak vfrog setup` to login.');
+        }
       } else {
-        spinner.warn('vfrog.ai API key not set (set VFROG_API_KEY later)');
+        spinner.warn('vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases');
       }
     }
 
@@ -453,7 +469,7 @@ function printSuccess(config, ideSelection = [], agentSelection = []) {
   }
 
   if (!config.vfrog) {
-    console.log(chalk.dim('  Note: vfrog.ai integration disabled. Enable with VFROG_API_KEY.'));
+    console.log(chalk.dim('  Note: vfrog integration disabled. Install CLI and run `croak vfrog setup` to enable.'));
   }
 
   console.log(chalk.dim('\n  For help, run: croak help'));

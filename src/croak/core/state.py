@@ -7,6 +7,34 @@ import yaml
 from pydantic import BaseModel, Field
 
 
+class AnnotationState(BaseModel):
+    """Tracks how dataset images were annotated."""
+
+    source: Optional[str] = None  # "vfrog" or "classic"
+    method: Optional[str] = None  # "ssat" (vfrog) or "manual" (classic)
+    format: Optional[str] = None  # "yolo", "coco", "voc" (classic path tracks this)
+    vfrog_iteration_id: Optional[str] = None  # Only when source == "vfrog"
+    vfrog_object_id: Optional[str] = None  # Only when source == "vfrog"
+
+
+class TrainingState(BaseModel):
+    """Tracks training provider and path-specific metadata."""
+
+    provider: Optional[str] = None  # "local", "modal", or "vfrog"
+    # Classic path fields (provider == "local" or "modal"):
+    architecture: Optional[str] = None
+    experiment_id: Optional[str] = None
+    # vfrog path fields (provider == "vfrog"):
+    vfrog_iteration_id: Optional[str] = None
+
+
+class DeploymentState(BaseModel):
+    """Tracks deployment target."""
+
+    target: Optional[str] = None  # "vfrog", "modal", or "edge"
+    vfrog_api_key_env: str = "VFROG_API_KEY"
+
+
 class DatasetArtifact(BaseModel):
     """Dataset artifact information."""
 
@@ -98,6 +126,11 @@ class PipelineState(BaseModel):
     # Data configuration
     data_yaml_path: Optional[str] = None
 
+    # Annotation, training, and deployment path tracking
+    annotation: AnnotationState = Field(default_factory=AnnotationState)
+    training_state: TrainingState = Field(default_factory=TrainingState)
+    deployment_state: DeploymentState = Field(default_factory=DeploymentState)
+
     artifacts: Artifacts = Field(default_factory=Artifacts)
     experiments: list[Experiment] = Field(default_factory=list)
 
@@ -138,6 +171,32 @@ class PipelineState(BaseModel):
     def is_stage_completed(self, stage: str) -> bool:
         """Check if a stage is completed."""
         return stage in self.stages_completed
+
+    def validate_provider_annotation_compatibility(self) -> list[str]:
+        """Validate that training provider matches annotation source.
+
+        Returns:
+            List of validation error messages (empty if valid).
+        """
+        errors = []
+        provider = self.training_state.provider
+        source = self.annotation.source
+
+        if provider == "vfrog" and source and source != "vfrog":
+            errors.append(
+                "Training provider is 'vfrog' but annotations are from "
+                f"'{source}'. vfrog training requires vfrog annotations."
+            )
+
+        if provider in ("local", "modal") and source == "vfrog":
+            errors.append(
+                f"Training provider is '{provider}' but annotations are "
+                "from 'vfrog'. vfrog does not export annotations. Use "
+                "classic annotations for local/Modal training, or train "
+                "with --provider vfrog."
+            )
+
+        return errors
 
     def add_warning(self, warning: str) -> None:
         """Add a warning message."""

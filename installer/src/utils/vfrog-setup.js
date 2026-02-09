@@ -1,205 +1,179 @@
 /**
- * vfrog.ai configuration utilities
+ * vfrog CLI integration utilities
+ *
+ * All functions invoke the vfrog Go binary (not HTTP API calls).
+ * The CLI manages its own auth state in ~/.vfrog/.
  */
 
 /**
- * Check if vfrog API key is set
+ * Check if vfrog CLI binary is available on PATH.
+ * @returns {Promise<boolean>}
  */
-export async function checkVfrogKey() {
-  return !!process.env.VFROG_API_KEY;
-}
+export async function checkVfrogCLI() {
+  const { execa } = await import('execa');
 
-/**
- * Get vfrog API key
- */
-export function getVfrogKey() {
-  return process.env.VFROG_API_KEY || null;
-}
-
-/**
- * Validate vfrog API key by making a test request
- */
-export async function validateVfrogKey(apiKey) {
   try {
-    const response = await fetch('https://api.vfrog.ai/v1/auth/verify', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    return response.ok;
+    await execa('vfrog', ['version']);
+    return true;
   } catch {
     return false;
   }
 }
 
 /**
- * Setup vfrog.ai integration
+ * Get vfrog CLI version string.
+ * @returns {Promise<string|null>} Version string or null if not installed.
  */
-export async function setupVfrog(options = {}) {
-  const apiKey = options.apiKey || getVfrogKey();
+export async function getVfrogVersion() {
+  const { execa } = await import('execa');
 
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'VFROG_API_KEY environment variable not set',
-    };
+  try {
+    const { stdout } = await execa('vfrog', ['version']);
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if user is authenticated with vfrog CLI.
+ * @returns {Promise<boolean>}
+ */
+export async function checkVfrogAuth() {
+  const config = await getVfrogConfig();
+  if (!config) return false;
+  return config.authenticated === true;
+}
+
+/**
+ * Get vfrog CLI config (auth status, org, project, object).
+ * @returns {Promise<object|null>} Config object or null on failure.
+ */
+export async function getVfrogConfig() {
+  const { execa } = await import('execa');
+
+  try {
+    const { stdout } = await execa('vfrog', ['config', 'show', '--json']);
+    return JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if vfrog context is fully configured (org + project set).
+ * @returns {Promise<{configured: boolean, organisation_id: string|null, project_id: string|null}>}
+ */
+export async function checkVfrogContext() {
+  const config = await getVfrogConfig();
+
+  if (!config) {
+    return { configured: false, organisation_id: null, project_id: null };
   }
 
-  // Validate the API key
-  const isValid = await validateVfrogKey(apiKey);
-
-  if (!isValid) {
-    return {
-      success: false,
-      error: 'Invalid vfrog API key',
-    };
-  }
+  const orgId = config.organisation_id || null;
+  const projectId = config.project_id || null;
 
   return {
-    success: true,
-    apiKey: apiKey.substring(0, 8) + '...', // Masked for display
+    configured: !!(orgId && projectId),
+    organisation_id: orgId,
+    project_id: projectId,
   };
 }
 
 /**
- * Create a new vfrog project
+ * Create a new vfrog project in the active organisation.
+ * @param {string} name - Project name.
+ * @returns {Promise<object>} Created project data.
  */
-export async function createVfrogProject(name, description = '') {
-  const apiKey = getVfrogKey();
-
-  if (!apiKey) {
-    throw new Error('VFROG_API_KEY not set');
-  }
+export async function createVfrogProject(name) {
+  const { execa } = await import('execa');
 
   try {
-    const response = await fetch('https://api.vfrog.ai/v1/projects', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name,
-        description,
-        task_type: 'detection',
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create project');
-    }
-
-    const project = await response.json();
-    return project;
+    const { stdout } = await execa('vfrog', ['projects', 'create', name, '--json']);
+    return JSON.parse(stdout);
   } catch (error) {
     throw new Error(`Failed to create vfrog project: ${error.message}`);
   }
 }
 
 /**
- * Get vfrog project status
+ * List vfrog projects in the active organisation.
+ * @returns {Promise<Array>} List of projects.
  */
-export async function getVfrogProjectStatus(projectId) {
-  const apiKey = getVfrogKey();
-
-  if (!apiKey) {
-    throw new Error('VFROG_API_KEY not set');
-  }
+export async function listVfrogProjects() {
+  const { execa } = await import('execa');
 
   try {
-    const response = await fetch(`https://api.vfrog.ai/v1/projects/${projectId}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+    const { stdout } = await execa('vfrog', ['projects', 'list', '--json']);
+    const result = JSON.parse(stdout);
+    return Array.isArray(result) ? result : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Upload dataset images to vfrog (URL-based).
+ * @param {string[]} urls - Image URLs to upload.
+ * @returns {Promise<object>} Upload result.
+ */
+export async function uploadToVfrog(urls) {
+  const { execa } = await import('execa');
+
+  try {
+    const { stdout } = await execa('vfrog', ['dataset_images', 'upload', ...urls, '--json'], {
+      timeout: 600000,
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to get project status');
-    }
-
-    return await response.json();
+    return JSON.parse(stdout);
   } catch (error) {
-    throw new Error(`Failed to get vfrog project status: ${error.message}`);
+    throw new Error(`Failed to upload to vfrog: ${error.message}`);
   }
 }
 
 /**
- * Upload images to vfrog for annotation
- */
-export async function uploadToVfrog(projectId, imagePaths) {
-  const apiKey = getVfrogKey();
-
-  if (!apiKey) {
-    throw new Error('VFROG_API_KEY not set');
-  }
-
-  // This would use the vfrog SDK or API to upload images
-  // For now, return a placeholder response
-  return {
-    success: true,
-    projectId,
-    uploadedCount: imagePaths.length,
-    status: 'pending_annotation',
-  };
-}
-
-/**
- * Download annotations from vfrog
- */
-export async function downloadFromVfrog(projectId, format = 'yolo') {
-  const apiKey = getVfrogKey();
-
-  if (!apiKey) {
-    throw new Error('VFROG_API_KEY not set');
-  }
-
-  // This would use the vfrog SDK or API to download annotations
-  // For now, return a placeholder response
-  return {
-    success: true,
-    projectId,
-    format,
-    annotationPath: `./data/annotations/${projectId}`,
-  };
-}
-
-/**
- * Get help text for vfrog setup
+ * Get help text for vfrog CLI setup.
+ * @returns {string} Setup instructions.
  */
 export function getVfrogSetupHelp() {
   return `
-vfrog.ai Setup Instructions
-============================
+vfrog CLI Setup Instructions
+=============================
 
-1. Create an account at https://vfrog.ai
+1. Download the vfrog CLI from:
+   https://github.com/vfrog/vfrog-cli/releases
 
-2. Go to Settings > API Keys
+2. Install the binary:
 
-3. Create a new API key
+   macOS/Linux:
+   chmod +x vfrog
+   sudo mv vfrog /usr/local/bin/
 
-4. Set the environment variable:
+   Windows:
+   Add vfrog.exe directory to your PATH
 
-   Linux/macOS:
-   export VFROG_API_KEY=your_api_key_here
+3. Verify installation:
+   vfrog version
 
-   Windows (PowerShell):
-   $env:VFROG_API_KEY = "your_api_key_here"
+4. Login and configure context:
+   croak vfrog setup
 
-   Windows (CMD):
-   set VFROG_API_KEY=your_api_key_here
+   This will walk you through:
+   - Email/password login
+   - Organisation selection
+   - Project selection or creation
 
-5. Add to your shell profile for persistence:
+5. For inference, set your API key:
+   export VFROG_API_KEY=your_key_here
 
-   Linux/macOS (.bashrc or .zshrc):
-   echo 'export VFROG_API_KEY=your_api_key_here' >> ~/.bashrc
-
-For more information, visit: https://docs.vfrog.ai/api-setup
+For more information, visit: https://github.com/vfrog/vfrog-cli
 `;
+}
+
+/**
+ * @deprecated Use checkVfrogCLI() and checkVfrogAuth() instead.
+ * Kept for backward compatibility during migration.
+ */
+export async function checkVfrogKey() {
+  return checkVfrogCLI() && (await checkVfrogAuth());
 }

@@ -161,3 +161,34 @@ class TestSecureRunner:
                 cwd=Path(tmpdir)
             )
             assert tmpdir in result.stdout
+
+    def test_vfrog_allowed_subcommands(self):
+        """Verify whitelisted vfrog subcommands pass."""
+        assert SecureRunner.is_command_allowed(['vfrog', 'projects', 'list'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'iterations', 'ssat'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'iteration', 'train'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'inference'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'config', 'show'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'dataset_images', 'upload'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'objects', 'list'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'organisations', 'list'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'login'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'version'])
+        assert SecureRunner.is_command_allowed(['vfrog', 'completion'])
+
+    def test_vfrog_dangerous_subcommands_blocked(self):
+        """Verify unknown/dangerous vfrog subcommands are blocked."""
+        assert not SecureRunner.is_command_allowed(['vfrog', 'rm'])
+        assert not SecureRunner.is_command_allowed(['vfrog', 'exec'])
+        assert not SecureRunner.is_command_allowed(['vfrog', 'delete'])
+        assert not SecureRunner.is_command_allowed(['vfrog', 'shell'])
+
+    def test_vfrog_flag_bypass_blocked(self):
+        """Verify flags can't be used to bypass subcommand whitelist."""
+        assert not SecureRunner.is_command_allowed(['vfrog', '--flag', 'rm'])
+        assert not SecureRunner.is_command_allowed(['vfrog', '--force', 'exec'])
+        assert not SecureRunner.is_command_allowed(['vfrog', '--json', 'shell'])
+
+    def test_vfrog_flags_allowed(self):
+        """Verify flag arguments are allowed for vfrog commands."""
+        assert SecureRunner.is_command_allowed(['vfrog', '--version'])

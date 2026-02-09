@@ -35,7 +35,10 @@ agent:
       - Always have a rollback plan before deploying
       - Monitor from day one - silent failures are the worst failures
       - Document deployment configuration for reproducibility
-      - vfrog for cloud (simple, scales), TensorRT for edge (fast, optimized)
+      - Three deployment targets: vfrog (inference endpoint), Modal (serverless), edge (ONNX/TensorRT)
+      - vfrog deployment = verify the inference endpoint works after vfrog training
+      - Modal deployment = deploy a custom model to a serverless endpoint
+      - Edge deployment = export and package for local/device inference
       - Never delete original weights - you will need them later
 
   capabilities:
@@ -47,9 +50,12 @@ agent:
       - id: "export_formats"
         name: "Export Formats"
         description: "Convert PyTorch models to ONNX, TensorRT, and CUDA-optimized formats"
-      - id: "cloud_deployment"
-        name: "Cloud Deployment"
-        description: "Deploy to vfrog.ai platform with auto-scaling and monitoring"
+      - id: "cloud_deployment_vfrog"
+        name: "vfrog Cloud Deployment"
+        description: "Test and verify model inference on vfrog platform endpoint"
+      - id: "cloud_deployment_modal"
+        name: "Modal Cloud Deployment"
+        description: "Deploy to Modal.com serverless endpoint with auto-scaling"
       - id: "edge_deployment"
         name: "Edge Deployment"
         description: "Generate optimized models for edge devices (Jetson, embedded)"
@@ -93,17 +99,29 @@ agent:
         mutates_state: true
         requires_confirmation: true
 
-      - trigger: "deploy cloud"
+      - trigger: "deploy vfrog"
         aliases:
-          - "deploy vfrog"
-          - "cloud deploy"
-          - "ship to cloud"
-          - "production deploy"
-        cli: "croak deploy cloud"
-        description: "Deploy model to vfrog.ai cloud platform with auto-scaling"
+          - "vfrog deploy"
+          - "ship to vfrog"
+          - "test vfrog inference"
+        cli: "croak deploy vfrog"
+        description: "Verify model inference on vfrog platform endpoint"
         type: "workflow"
         workflow: "workflows/model-deployment/steps/step-03-cloud.md"
-        capability: "cloud_deployment"
+        capability: "cloud_deployment_vfrog"
+        mutates_state: true
+        requires_confirmation: true
+
+      - trigger: "deploy modal"
+        aliases:
+          - "modal deploy"
+          - "ship to modal"
+          - "deploy cloud"
+          - "cloud deploy"
+        cli: "croak deploy modal"
+        description: "Deploy model to Modal.com serverless endpoint"
+        type: "workflow"
+        capability: "cloud_deployment_modal"
         mutates_state: true
         requires_confirmation: true
 
@@ -157,7 +175,7 @@ agent:
         description: "End-to-end deployment workflow (optimize → export → deploy → validate)"
         type: "workflow"
         workflow: "workflows/model-deployment/workflow.yaml"
-        capability: "cloud_deployment"
+        capability: "cloud_deployment_modal"
         mutates_state: true
         requires_confirmation: true
 
@@ -216,6 +234,11 @@ agent:
         when: "after_deployment"
         violation: "warning"
 
+  vfrog_commands:
+    - "vfrog inference --api-key <key> --image <path> --json"
+    - "vfrog inference --api-key <key> --image_url <url> --json"
+    - "vfrog config show --json"
+
   guardrails:
     checks:
       - id: "evaluation_handoff_valid"
@@ -236,11 +259,19 @@ agent:
 
       - id: "vfrog_credentials"
         name: "vfrog Credentials"
-        check: "vfrog_api_key_set"
-        trigger: "before_cloud_deploy"
-        condition: "VFROG_API_KEY environment variable is set and valid"
+        check: "vfrog_cli_and_auth"
+        trigger: "before_vfrog_deploy"
+        condition: "vfrog CLI is installed and user is authenticated"
         severity: "error"
-        error_message: "vfrog API key not configured. Set VFROG_API_KEY environment variable. Get your key at https://vfrog.ai/settings/api"
+        error_message: "vfrog CLI not installed or not authenticated. Install from https://github.com/vfrog/vfrog-cli/releases and run 'croak vfrog setup'."
+
+      - id: "vfrog_api_key_for_inference"
+        name: "vfrog API Key for Inference"
+        check: "vfrog_api_key_set"
+        trigger: "before_vfrog_inference"
+        condition: "VFROG_API_KEY environment variable is set"
+        severity: "error"
+        error_message: "VFROG_API_KEY not set. Required for inference. Get your key at https://platform.vfrog.ai"
 
       - id: "tensorrt_available"
         name: "TensorRT Available"
@@ -296,8 +327,8 @@ agent:
     files:
       - id: "vfrog_guide"
         path: "knowledge/deployment/vfrog-guide.md"
-        load: "capability:cloud_deployment"
-        description: "Complete vfrog.ai platform deployment guide with API usage"
+        load: "capability:cloud_deployment_vfrog"
+        description: "vfrog CLI deployment guide for inference verification"
 
       - id: "edge_deployment"
         path: "knowledge/deployment/edge-deployment.md"

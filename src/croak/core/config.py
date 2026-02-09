@@ -7,10 +7,18 @@ from pydantic import BaseModel, Field
 
 
 class VfrogConfig(BaseModel):
-    """vfrog.ai integration configuration."""
+    """vfrog.ai integration configuration.
 
-    api_key_env: str = "VFROG_API_KEY"
-    project_id: Optional[str] = None
+    Tracks the vfrog CLI context hierarchy:
+    organisation → project → object → iteration.
+    """
+
+    api_key_env: str = "VFROG_API_KEY"  # For inference only
+    cli_path: Optional[str] = None  # Custom vfrog binary path (default: on PATH)
+    organisation_id: Optional[str] = None  # Cached org ID
+    project_id: Optional[str] = None  # Cached project ID
+    object_id: Optional[str] = None  # Cached object ID
+    current_iteration_id: Optional[str] = None  # Active SSAT iteration
 
 
 class ComputeConfig(BaseModel):
