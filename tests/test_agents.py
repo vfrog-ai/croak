@@ -17,20 +17,20 @@ class TestAgentDefinition:
             id="test-agent",
             name="test_agent",
             title="Test Agent",
+            icon="T",
             role="Testing",
-            expertise=["testing", "validation"],
             capabilities=[
                 AgentCapability(
+                    id="test-cap",
                     name="test",
                     description="Run tests",
                 )
             ],
             commands=[
                 AgentCommand(
-                    name="run-tests",
+                    trigger="run-tests",
                     description="Run all tests",
-                    usage="croak test",
-                    examples=["croak test --verbose"],
+                    capability="test-cap",
                 )
             ],
         )
@@ -46,10 +46,10 @@ class TestAgentDefinition:
             id="data-agent",
             name="data_agent",
             title="Data Agent",
+            icon="D",
             role="Data preparation",
-            expertise=["data validation", "preprocessing"],
             capabilities=[
-                AgentCapability(name="validate", description="Validate data")
+                AgentCapability(id="validate", name="validate", description="Validate data")
             ],
             commands=[],
         )
@@ -58,104 +58,114 @@ class TestAgentDefinition:
 
         assert "Data Agent" in prompt
         assert "Data preparation" in prompt
-        assert "data validation" in prompt
+        assert "validate" in prompt.lower()
 
 
 class TestAgentLoader:
     """Test AgentLoader class."""
 
+    def _create_agent_dir(self, agents_dir, agent_id, agent_name, title, role,
+                          capabilities=None, commands=None):
+        """Helper to create a properly structured agent directory."""
+        agent_subdir = agents_dir / agent_id
+        agent_subdir.mkdir(parents=True, exist_ok=True)
+
+        agent_yaml = {
+            "agent": {
+                "metadata": {
+                    "id": agent_id,
+                    "name": agent_name,
+                    "title": title,
+                    "icon": "T",
+                },
+                "persona": {
+                    "role": role,
+                },
+                "capabilities": {
+                    "items": capabilities or []
+                },
+                "menu": {
+                    "commands": commands or []
+                },
+            }
+        }
+
+        yaml_path = agent_subdir / f"{agent_id}.agent.yaml"
+        with open(yaml_path, "w") as f:
+            yaml.dump(agent_yaml, f)
+
+        return yaml_path
+
     def test_load_agent_from_yaml(self):
         """Test loading agent from YAML file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             agents_dir = Path(tmpdir) / "agents"
-            agents_dir.mkdir()
 
-            # Create agent YAML
-            agent_yaml = {
-                "id": "test-agent",
-                "name": "test_agent",
-                "title": "Test Agent",
-                "role": "Testing",
-                "expertise": ["testing"],
-                "capabilities": [
-                    {"name": "test", "description": "Test capability"}
+            self._create_agent_dir(
+                agents_dir,
+                agent_id="test-agent",
+                agent_name="test_agent",
+                title="Test Agent",
+                role="Testing",
+                capabilities=[
+                    {"id": "test-cap", "name": "test", "description": "Test capability"}
                 ],
-                "commands": [
+                commands=[
                     {
-                        "name": "test-cmd",
+                        "trigger": "test-cmd",
                         "description": "Test command",
-                        "usage": "croak test",
-                        "examples": [],
+                        "capability": "test-cap",
                     }
                 ],
-            }
+            )
 
-            agent_path = agents_dir / "test-agent.yaml"
-            with open(agent_path, "w") as f:
-                yaml.dump(agent_yaml, f)
-
-            # Load agent
             loader = AgentLoader(agents_dir)
             agents = loader.load_all()
 
-            assert "test-agent" in agents
-            assert agents["test-agent"].title == "Test Agent"
+            assert "test_agent" in agents
+            assert agents["test_agent"].title == "Test Agent"
 
     def test_load_multiple_agents(self):
         """Test loading multiple agents."""
         with tempfile.TemporaryDirectory() as tmpdir:
             agents_dir = Path(tmpdir) / "agents"
-            agents_dir.mkdir()
 
-            # Create multiple agent YAMLs
             for name in ["data", "training", "eval"]:
-                agent_yaml = {
-                    "id": f"{name}-agent",
-                    "name": f"{name}_agent",
-                    "title": f"{name.title()} Agent",
-                    "role": f"{name.title()} operations",
-                    "expertise": [name],
-                    "capabilities": [],
-                    "commands": [],
-                }
-
-                with open(agents_dir / f"{name}-agent.yaml", "w") as f:
-                    yaml.dump(agent_yaml, f)
+                self._create_agent_dir(
+                    agents_dir,
+                    agent_id=f"{name}-agent",
+                    agent_name=f"{name}_agent",
+                    title=f"{name.title()} Agent",
+                    role=f"{name.title()} operations",
+                )
 
             loader = AgentLoader(agents_dir)
             agents = loader.load_all()
 
             assert len(agents) == 3
-            assert "data-agent" in agents
-            assert "training-agent" in agents
-            assert "eval-agent" in agents
+            assert "data_agent" in agents
+            assert "training_agent" in agents
+            assert "eval_agent" in agents
 
     def test_route_command(self):
         """Test command routing to correct agent."""
         with tempfile.TemporaryDirectory() as tmpdir:
             agents_dir = Path(tmpdir) / "agents"
-            agents_dir.mkdir()
 
-            # Create agent with specific command
-            agent_yaml = {
-                "id": "data-agent",
-                "name": "data_agent",
-                "title": "Data Agent",
-                "role": "Data",
-                "expertise": [],
-                "capabilities": [],
-                "commands": [
+            self._create_agent_dir(
+                agents_dir,
+                agent_id="data-agent",
+                agent_name="data_agent",
+                title="Data Agent",
+                role="Data",
+                commands=[
                     {
-                        "name": "validate",
+                        "trigger": "validate",
                         "description": "Validate dataset",
-                        "usage": "croak validate",
-                        "examples": [],
+                        "capability": "validate-cap",
                     }
                 ],
-            }
-
-            with open(agents_dir / "data-agent.yaml", "w") as f:
-                yaml.dump(agent_yaml, f)
+            )
 
             loader = AgentLoader(agents_dir)
             loader.load_all()
@@ -165,7 +175,7 @@ class TestAgentLoader:
             assert result is not None
             agent, command = result
             assert agent.id == "data-agent"
-            assert command.name == "validate"
+            assert command.trigger == "validate"
 
     def test_route_command_no_match(self):
         """Test command routing with no match."""
