@@ -13,7 +13,7 @@ import chalk from 'chalk';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, existsSync } from 'fs';
-import { spawn } from 'child_process';
+import { spawn, execFileSync } from 'child_process';
 
 // Import commands
 import { initCommand } from '../src/commands/init.js';
@@ -46,13 +46,13 @@ const firstArg = args[0];
 
 // If it's a Python command, pass through to Python CLI
 if (firstArg && !JS_COMMANDS.includes(firstArg) && !firstArg.startsWith('-')) {
-  // Try to find Python croak in common locations
+  // Try to find the Python-installed croak binary.
+  // IMPORTANT: We must not fall back to bare 'croak' because that resolves
+  // to THIS Node.js script, causing an infinite recursive spawn loop.
   const pythonCommands = [
     // Check if in a virtual environment
     join(process.cwd(), '.venv', 'bin', 'croak'),
     join(process.cwd(), 'venv', 'bin', 'croak'),
-    // Check system Python
-    'croak',
   ];
 
   let pythonCroakPath = null;
@@ -65,22 +65,42 @@ if (firstArg && !JS_COMMANDS.includes(firstArg) && !firstArg.startsWith('-')) {
     );
   }
 
-  // Find the Python croak command
-  for (const cmd of pythonCommands) {
-    if (cmd === 'croak') {
-      // System command - let spawn find it
-      pythonCroakPath = cmd;
-      break;
+  // Also check if Python croak is installed via pip (not this Node.js script)
+  try {
+    const pipShowOutput = execFileSync('python3', ['-c', 'import croak; print(croak.__file__)'], {
+      encoding: 'utf8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    if (pipShowOutput.trim()) {
+      // Python croak package is installed — invoke via python -m
+      pythonCroakPath = '__python_module__';
     }
-    if (existsSync(cmd)) {
-      pythonCroakPath = cmd;
-      break;
+  } catch {
+    // Python croak not installed as a package
+  }
+
+  // Find the Python croak command from venv paths
+  if (!pythonCroakPath) {
+    for (const cmd of pythonCommands) {
+      if (existsSync(cmd)) {
+        pythonCroakPath = cmd;
+        break;
+      }
     }
   }
 
   if (pythonCroakPath) {
     // Pass through to Python CLI
-    const child = spawn(pythonCroakPath, args, {
+    let spawnCmd, spawnArgs;
+    if (pythonCroakPath === '__python_module__') {
+      spawnCmd = 'python3';
+      spawnArgs = ['-m', 'croak', ...args];
+    } else {
+      spawnCmd = pythonCroakPath;
+      spawnArgs = args;
+    }
+    const child = spawn(spawnCmd, spawnArgs, {
       stdio: 'inherit',
       shell: process.platform === 'win32',
     });

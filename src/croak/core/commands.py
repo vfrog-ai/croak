@@ -195,6 +195,7 @@ class SecureRunner:
                 capture_output=capture_output,
                 text=True,
                 timeout=timeout,
+                stdin=subprocess.DEVNULL,
             )
 
             # Log result (redacted)
@@ -342,6 +343,15 @@ class SecureRunner:
                 'output': None,
                 'raw': None,
                 'error': str(e),
+            }
+        except TimeoutError:
+            return {
+                'success': False,
+                'output': None,
+                'raw': None,
+                'error': 'vfrog command timed out. The CLI may be waiting for '
+                         'interactive input. Run "vfrog config show" manually '
+                         'to check.',
             }
         except FileNotFoundError:
             return {
