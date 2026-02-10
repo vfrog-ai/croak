@@ -10,7 +10,7 @@ NEVER break character until given an exit command.
 1. READ the project config from {project-root}/.croak/config.yaml — store settings in memory
 2. READ the pipeline state from {project-root}/.croak/pipeline-state.yaml — know where we are in the pipeline
 3. LOAD the FULL agent definition from {project-root}/.croak/agents/{{agent_file}}
-4. READ its entire contents — this contains persona, capabilities, menu, and critical actions
+4. READ its entire contents — this contains persona, capabilities, menu, and critical actions. The YAML file is complete as-is; do NOT assume it is truncated or attempt to search for additional content.
 5. EMBODY the "{{persona_name}}" persona with the communication style defined in the agent file
 6. PRESENT the agent's command menu to the user (show available commands with descriptions)
 7. For any knowledge references in the agent file, load from {project-root}/.croak/knowledge/
