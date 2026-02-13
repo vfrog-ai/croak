@@ -101,15 +101,39 @@ class TestVfrogCLIDatasetImages:
     """Test dataset image methods."""
 
     @patch("croak.core.commands.SecureRunner.run_vfrog")
-    def test_upload_dataset_images(self, mock_run):
+    def test_upload_dataset_images_urls(self, mock_run):
         mock_run.return_value = {"success": True, "output": {"uploaded": 2}}
         urls = ["https://example.com/img1.jpg", "https://example.com/img2.jpg"]
-        result = VfrogCLI.upload_dataset_images(urls)
+        result = VfrogCLI.upload_dataset_images(urls=urls)
         assert result["success"] is True
         mock_run.assert_called_once_with(
             ["dataset_images", "upload", urls[0], urls[1]],
             timeout=600,
         )
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_upload_dataset_images_directory(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {"uploaded": 5}}
+        result = VfrogCLI.upload_dataset_images(directory="/path/to/images")
+        assert result["success"] is True
+        mock_run.assert_called_once_with(
+            ["dataset_images", "upload", "--dir", "/path/to/images"],
+            timeout=600,
+        )
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_upload_dataset_images_file(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {"uploaded": 1}}
+        result = VfrogCLI.upload_dataset_images(file_path="/path/to/image.jpg")
+        assert result["success"] is True
+        mock_run.assert_called_once_with(
+            ["dataset_images", "upload", "--file", "/path/to/image.jpg"],
+            timeout=600,
+        )
+
+    def test_upload_dataset_images_no_source_raises(self):
+        with pytest.raises(ValueError, match="One of urls, file_path, or directory"):
+            VfrogCLI.upload_dataset_images()
 
     @patch("croak.core.commands.SecureRunner.run_vfrog")
     def test_list_dataset_images(self, mock_run):
@@ -132,7 +156,7 @@ class TestVfrogCLIObjects:
     @patch("croak.core.commands.SecureRunner.run_vfrog")
     def test_create_object_with_label(self, mock_run):
         mock_run.return_value = {"success": True, "output": {"id": "obj-1"}}
-        VfrogCLI.create_object("https://example.com/product.jpg", label="my-product")
+        VfrogCLI.create_object(url="https://example.com/product.jpg", label="my-product")
         mock_run.assert_called_once_with(
             ["objects", "create", "https://example.com/product.jpg", "--label", "my-product"]
         )
@@ -140,10 +164,22 @@ class TestVfrogCLIObjects:
     @patch("croak.core.commands.SecureRunner.run_vfrog")
     def test_create_object_minimal(self, mock_run):
         mock_run.return_value = {"success": True, "output": {"id": "obj-1"}}
-        VfrogCLI.create_object("https://example.com/product.jpg")
+        VfrogCLI.create_object(url="https://example.com/product.jpg")
         mock_run.assert_called_once_with(
             ["objects", "create", "https://example.com/product.jpg"]
         )
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_create_object_from_file(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {"id": "obj-1"}}
+        VfrogCLI.create_object(file_path="/path/to/product.jpg", label="my-product")
+        mock_run.assert_called_once_with(
+            ["objects", "create", "--file", "/path/to/product.jpg", "--label", "my-product"]
+        )
+
+    def test_create_object_no_source_raises(self):
+        with pytest.raises(ValueError, match="One of url or file_path"):
+            VfrogCLI.create_object()
 
     @patch("croak.core.commands.SecureRunner.run_vfrog")
     def test_list_objects(self, mock_run):
@@ -230,6 +266,88 @@ class TestVfrogCLIIterations:
         mock_run.assert_called_once_with(["iterations", "list"])
 
 
+class TestVfrogCLIIterationStatus:
+    """Test iteration status, deploy, annotations methods."""
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_get_iteration_status(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {"status": "annotating"}}
+        result = VfrogCLI.get_iteration_status("iter-123")
+        assert result["success"] is True
+        mock_run.assert_called_once_with(
+            ["iterations", "status", "--iteration_id", "iter-123"],
+            timeout=300,
+        )
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_get_iteration_status_watch(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {"status": "complete"}}
+        VfrogCLI.get_iteration_status("iter-123", watch=True)
+        mock_run.assert_called_once_with(
+            ["iterations", "status", "--iteration_id", "iter-123", "--watch"],
+            timeout=600,
+        )
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_deploy_iteration(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {"deployed": True}}
+        result = VfrogCLI.deploy_iteration("iter-123")
+        assert result["success"] is True
+        mock_run.assert_called_once_with(
+            ["iterations", "deploy", "--iteration_id", "iter-123"]
+        )
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_get_annotations(self, mock_run):
+        mock_run.return_value = {"success": True, "output": []}
+        result = VfrogCLI.get_annotations("iter-123")
+        assert result["success"] is True
+        mock_run.assert_called_once_with(
+            ["iterations", "annotations", "--iteration_id", "iter-123"]
+        )
+
+
+class TestVfrogCLIExport:
+    """Test export methods."""
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_export_yolo(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {"path": "./export"}}
+        result = VfrogCLI.export_yolo("iter-123", output_dir="./my-export")
+        assert result["success"] is True
+        mock_run.assert_called_once_with(
+            ["export", "yolo", "--iteration_id", "iter-123", "--output", "./my-export"],
+            timeout=600,
+        )
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_export_yolo_default_dir(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {}}
+        VfrogCLI.export_yolo("iter-123")
+        args = mock_run.call_args[0][0]
+        assert "--output" in args
+        assert "./export" in args
+
+
+class TestVfrogCLISSATIndustry:
+    """Test SSAT industry parameter."""
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_run_ssat_with_industry(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {}}
+        VfrogCLI.run_ssat("iter-123", industry="retail")
+        args = mock_run.call_args[0][0]
+        assert "--industry" in args
+        assert "retail" in args
+
+    @patch("croak.core.commands.SecureRunner.run_vfrog")
+    def test_run_ssat_without_industry(self, mock_run):
+        mock_run.return_value = {"success": True, "output": {}}
+        VfrogCLI.run_ssat("iter-123")
+        args = mock_run.call_args[0][0]
+        assert "--industry" not in args
+
+
 class TestVfrogCLITraining:
     """Test training method."""
 
@@ -238,7 +356,7 @@ class TestVfrogCLITraining:
         mock_run.return_value = {"success": True, "output": {"status": "training"}}
         VfrogCLI.train_iteration("iter-123")
         mock_run.assert_called_once_with(
-            ["iteration", "train", "--iteration_id", "iter-123"],
+            ["iterations", "train", "--iteration_id", "iter-123"],
             timeout=3600,
         )
 
@@ -317,23 +435,23 @@ class TestVfrogCLIInputSanitization:
 
     def test_upload_rejects_flag_injection(self):
         with pytest.raises(ValueError, match="must not start with"):
-            VfrogCLI.upload_dataset_images(["--malicious-flag"])
+            VfrogCLI.upload_dataset_images(urls=["--malicious-flag"])
 
     def test_upload_rejects_non_http_url(self):
         with pytest.raises(ValueError, match="http:// or https://"):
-            VfrogCLI.upload_dataset_images(["ftp://example.com/img.jpg"])
+            VfrogCLI.upload_dataset_images(urls=["ftp://example.com/img.jpg"])
 
     def test_create_object_rejects_flag_url(self):
         with pytest.raises(ValueError, match="must not start with"):
-            VfrogCLI.create_object("--inject")
+            VfrogCLI.create_object(url="--inject")
 
     def test_create_object_rejects_flag_label(self):
         with pytest.raises(ValueError, match="must not start with"):
-            VfrogCLI.create_object("https://example.com/img.jpg", label="--inject")
+            VfrogCLI.create_object(url="https://example.com/img.jpg", label="--inject")
 
     def test_create_object_rejects_flag_external_id(self):
         with pytest.raises(ValueError, match="must not start with"):
-            VfrogCLI.create_object("https://example.com/img.jpg", external_id="--inject")
+            VfrogCLI.create_object(url="https://example.com/img.jpg", external_id="--inject")
 
     def test_delete_object_rejects_flag_id(self):
         with pytest.raises(ValueError, match="must not start with"):
@@ -355,8 +473,8 @@ class TestVfrogCLIInputSanitization:
     def test_valid_inputs_pass_through(self, mock_run):
         mock_run.return_value = {"success": True, "output": {}}
         # These should not raise
-        VfrogCLI.upload_dataset_images(["https://example.com/img.jpg"])
-        VfrogCLI.create_object("https://example.com/img.jpg", label="my-label")
+        VfrogCLI.upload_dataset_images(urls=["https://example.com/img.jpg"])
+        VfrogCLI.create_object(url="https://example.com/img.jpg", label="my-label")
         VfrogCLI.run_ssat("abc-123-def")
         assert mock_run.call_count == 3
 

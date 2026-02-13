@@ -52,16 +52,25 @@ If not set up:
 #### 2. Upload Dataset Images
 
 ```python
-VfrogCLI.upload_dataset_images(image_urls)
-```
+# Upload from local directory
+VfrogCLI.upload_dataset_images(directory="data/raw")
 
-Note: vfrog CLI v0.1 requires image URLs (not local files). Images must be
-accessible via public or pre-signed URLs.
+# Or upload individual files
+VfrogCLI.upload_dataset_images(file_path="/path/to/image.jpg")
+
+# Or upload from URLs
+VfrogCLI.upload_dataset_images(urls=image_urls)
+```
 
 #### 3. Create Object (Product Image)
 
 ```python
-VfrogCLI.create_object(product_image_url, label="target-object")
+# From URL
+VfrogCLI.create_object(url=product_image_url, label="target-object")
+
+# Or from local file
+VfrogCLI.create_object(file_path="/path/to/product.jpg", label="target-object")
+
 VfrogCLI.set_object(object_id)
 ```
 
@@ -85,7 +94,17 @@ SSAT (Semi-Supervised Active Training):
 - Iteration 1: Uses cutout extraction and matching
 - Iteration 2+: Uses trained model inference for auto-annotation
 
-#### 6. Guide HALO Review
+#### 6. Check SSAT Progress
+
+```python
+# Check iteration status
+VfrogCLI.get_iteration_status(iteration_id)
+
+# Or watch until complete
+VfrogCLI.get_iteration_status(iteration_id, watch=True)
+```
+
+#### 7. Guide HALO Review
 
 ```python
 halo_result = VfrogCLI.get_halo_url(iteration_id)
@@ -101,7 +120,14 @@ halo_result = VfrogCLI.get_halo_url(iteration_id)
 >
 > When you're done reviewing, come back and we'll start training."
 
-#### 7. Update Pipeline State
+#### 8. Export Annotations (Optional)
+
+```python
+# Export to YOLO format for local training
+VfrogCLI.export_yolo(iteration_id, output_dir="./data/processed")
+```
+
+#### 9. Update Pipeline State
 
 ```yaml
 annotation_source: "vfrog"

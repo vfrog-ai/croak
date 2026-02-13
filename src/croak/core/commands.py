@@ -64,7 +64,7 @@ class SecureRunner:
         'vfrog': [
             'version', 'login', 'config', 'organisations', 'projects',
             'dataset_images', 'objects', 'iterations', 'iteration',
-            'inference', 'completion',
+            'inference', 'completion', 'export',
         ],
     }
 

@@ -19,8 +19,14 @@ from pydantic import BaseModel
 from croak.core.commands import SecureRunner
 
 
-def _sanitize_arg(value: str, name: str) -> str:
-    """Prevent argument injection by rejecting values that look like flags."""
+def _sanitize_arg(value: str, name: str, allow_path: bool = False) -> str:
+    """Prevent argument injection by rejecting values that look like flags.
+
+    Args:
+        value: The argument value to sanitize.
+        name: Name of the argument (for error messages).
+        allow_path: If True, allow file system paths (which may start with / or drive letter).
+    """
     if value.startswith('-'):
         raise ValueError(f"{name} must not start with '-': {value!r}")
     return value
@@ -173,20 +179,29 @@ class VfrogCLI:
     # --- Dataset Images ---
 
     @staticmethod
-    def upload_dataset_images(urls: List[str]) -> Dict[str, Any]:
-        """Upload dataset images from URLs.
-
-        Local file upload is not supported in vfrog CLI v0.1.
-        Images must be accessible via public or pre-signed URLs.
+    def upload_dataset_images(
+        urls: Optional[List[str]] = None,
+        file_path: Optional[str] = None,
+        directory: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Upload dataset images from URLs, a local file, or a directory.
 
         Args:
             urls: List of image URLs to upload.
+            file_path: Local image file path to upload.
+            directory: Local directory of images to upload.
         """
-        validated = [_sanitize_url(u) for u in urls]
-        return SecureRunner.run_vfrog(
-            ['dataset_images', 'upload'] + validated,
-            timeout=600,
-        )
+        args = ['dataset_images', 'upload']
+        if directory:
+            args.extend(['--dir', _sanitize_arg(directory, 'directory', allow_path=True)])
+        elif file_path:
+            args.extend(['--file', _sanitize_arg(file_path, 'file_path', allow_path=True)])
+        elif urls:
+            validated = [_sanitize_url(u) for u in urls]
+            args.extend(validated)
+        else:
+            raise ValueError("One of urls, file_path, or directory must be provided")
+        return SecureRunner.run_vfrog(args, timeout=600)
 
     @staticmethod
     def list_dataset_images() -> Dict[str, Any]:
@@ -208,18 +223,26 @@ class VfrogCLI:
 
     @staticmethod
     def create_object(
-        url: str,
+        url: Optional[str] = None,
         label: str = '',
         external_id: str = '',
+        file_path: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Create a new object (product image) from a URL.
+        """Create a new object (product image) from a URL or local file.
 
         Args:
             url: URL of the product/reference image.
             label: Optional label for the object.
             external_id: Optional external identifier.
+            file_path: Local file path of the product image.
         """
-        args = ['objects', 'create', _sanitize_url(url)]
+        args = ['objects', 'create']
+        if file_path:
+            args.extend(['--file', _sanitize_arg(file_path, 'file_path', allow_path=True)])
+        elif url:
+            args.append(_sanitize_url(url))
+        else:
+            raise ValueError("One of url or file_path must be provided")
         if label:
             args.extend(['--label', _sanitize_arg(label, 'label')])
         if external_id:
@@ -276,6 +299,7 @@ class VfrogCLI:
         iteration_id: str,
         random_count: int = 0,
         restart: bool = False,
+        industry: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Start SSAT auto-annotation for an iteration.
 
@@ -289,12 +313,15 @@ class VfrogCLI:
             iteration_id: Iteration UUID.
             random_count: Override random image count (0 = use defaults).
             restart: Whether to restart the SSAT process.
+            industry: Optional industry hint for better annotation context.
         """
         args = ['iterations', 'ssat', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id')]
         if random_count > 0:
             args.extend(['--random', str(random_count)])
         if restart:
             args.append('--restart')
+        if industry:
+            args.extend(['--industry', _sanitize_arg(industry, 'industry')])
         return SecureRunner.run_vfrog(args, timeout=600)
 
     @staticmethod
@@ -330,6 +357,55 @@ class VfrogCLI:
             ['iterations', 'restart', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id')]
         )
 
+    @staticmethod
+    def get_iteration_status(iteration_id: str, watch: bool = False) -> Dict[str, Any]:
+        """Get the status of an iteration.
+
+        Args:
+            iteration_id: Iteration UUID.
+            watch: If True, poll until iteration completes (longer timeout).
+        """
+        args = ['iterations', 'status', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id')]
+        if watch:
+            args.append('--watch')
+        return SecureRunner.run_vfrog(args, timeout=600 if watch else 300)
+
+    @staticmethod
+    def deploy_iteration(iteration_id: str) -> Dict[str, Any]:
+        """Deploy a trained iteration model.
+
+        Args:
+            iteration_id: Iteration UUID (must have completed training).
+        """
+        return SecureRunner.run_vfrog(
+            ['iterations', 'deploy', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id')]
+        )
+
+    @staticmethod
+    def get_annotations(iteration_id: str) -> Dict[str, Any]:
+        """Get annotations for an iteration.
+
+        Args:
+            iteration_id: Iteration UUID.
+        """
+        return SecureRunner.run_vfrog(
+            ['iterations', 'annotations', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id')]
+        )
+
+    @staticmethod
+    def export_yolo(iteration_id: str, output_dir: str = "./export") -> Dict[str, Any]:
+        """Export iteration annotations in YOLO format.
+
+        Args:
+            iteration_id: Iteration UUID.
+            output_dir: Output directory for exported files.
+        """
+        return SecureRunner.run_vfrog(
+            ['export', 'yolo', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id'),
+             '--output', output_dir],
+            timeout=600,
+        )
+
     # --- Training (on vfrog platform) ---
 
     @staticmethod
@@ -340,7 +416,7 @@ class VfrogCLI:
             iteration_id: Iteration UUID (must have completed SSAT + HALO review).
         """
         return SecureRunner.run_vfrog(
-            ['iteration', 'train', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id')],
+            ['iterations', 'train', '--iteration_id', _sanitize_arg(iteration_id, 'iteration_id')],
             timeout=3600,
         )
 

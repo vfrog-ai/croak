@@ -815,12 +815,36 @@ def _annotate_vfrog(root, iteration_id, object_id, random_count, check_status, h
         image_count = len(images_result['output'])
 
     if image_count == 0:
-        console.print("\n[yellow]No dataset images uploaded yet.[/yellow]")
-        console.print("Upload images first:")
-        console.print("  [cyan]vfrog dataset_images upload <url1> <url2> ...[/cyan]")
-        console.print("\nNote: vfrog requires image URLs (not local files).")
-        console.print("Host your images on S3, GCS, or any public URL first.")
-        return
+        # Check for local images in data/raw/
+        raw_dir = root / "data" / "raw"
+        local_images = []
+        if raw_dir.exists():
+            local_images = [f for f in raw_dir.rglob("*") if f.suffix.lower() in {'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'}]
+
+        if local_images:
+            console.print(f"\n[yellow]No dataset images uploaded yet, but found {len(local_images)} local images in data/raw/[/yellow]")
+            if click.confirm("Upload local images from data/raw/ to vfrog?", default=True):
+                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+                    task = progress.add_task("Uploading local images...", total=None)
+                    upload_result = VfrogCLI.upload_dataset_images(directory=str(raw_dir))
+                    progress.update(task, completed=True)
+                if upload_result['success']:
+                    console.print("[green]✓ Images uploaded[/green]")
+                    # Re-check count
+                    images_result = VfrogCLI.list_dataset_images()
+                    if images_result['success'] and isinstance(images_result['output'], list):
+                        image_count = len(images_result['output'])
+                else:
+                    console.print(f"[red]Upload failed: {upload_result.get('error')}[/red]")
+                    return
+            else:
+                return
+        else:
+            console.print("\n[yellow]No dataset images uploaded yet.[/yellow]")
+            console.print("Upload images first:")
+            console.print("  [cyan]croak vfrog upload --dir data/raw/[/cyan]  (local files)")
+            console.print("  [cyan]croak vfrog upload <url1> <url2> ...[/cyan]  (URLs)")
+            return
 
     console.print(f"\n[green]✓[/green] {image_count} dataset images found")
 
@@ -865,6 +889,12 @@ def _annotate_vfrog(root, iteration_id, object_id, random_count, check_status, h
         return
 
     console.print("[green]✓ SSAT auto-annotation complete[/green]")
+
+    # Step 4b: Check iteration status
+    status_result = VfrogCLI.get_iteration_status(new_iteration_id)
+    if status_result['success'] and isinstance(status_result['output'], dict):
+        iter_status = status_result['output'].get('status', 'unknown')
+        console.print(f"  Iteration status: [cyan]{iter_status}[/cyan]")
 
     # Step 5: Show HALO URL
     halo_result = VfrogCLI.get_halo_url(new_iteration_id)
@@ -1837,6 +1867,73 @@ def status():
         console.print(table)
     else:
         console.print(f"Config: {result.get('raw', 'No output')}")
+
+
+@vfrog.command('upload')
+@click.option("--dir", "directory", type=click.Path(exists=True), default=None,
+              help="Upload all images from a local directory")
+@click.option("--file", "file_path", type=click.Path(exists=True), default=None,
+              help="Upload a single local image file")
+@click.argument("urls", nargs=-1)
+def vfrog_upload(directory, file_path, urls):
+    """Upload dataset images to vfrog project."""
+    from croak.integrations.vfrog import VfrogCLI
+
+    if not VfrogCLI.check_installed():
+        console.print("[red]vfrog CLI not installed.[/red]")
+        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        return
+
+    if not directory and not file_path and not urls:
+        console.print("[red]Provide images to upload:[/red]")
+        console.print("  [cyan]croak vfrog upload --dir data/raw/[/cyan]")
+        console.print("  [cyan]croak vfrog upload --file image.jpg[/cyan]")
+        console.print("  [cyan]croak vfrog upload https://example.com/img.jpg[/cyan]")
+        return
+
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        task = progress.add_task("Uploading images...", total=None)
+        result = VfrogCLI.upload_dataset_images(
+            urls=list(urls) if urls else None,
+            file_path=file_path,
+            directory=directory,
+        )
+        progress.update(task, completed=True)
+
+    if result['success']:
+        console.print("[green]✓ Upload complete![/green]")
+        if isinstance(result['output'], dict):
+            uploaded = result['output'].get('uploaded', result['output'].get('count', ''))
+            if uploaded:
+                console.print(f"  Images uploaded: [cyan]{uploaded}[/cyan]")
+    else:
+        console.print(f"[red]Upload failed: {result.get('error')}[/red]")
+
+
+@vfrog.command('export')
+@click.option("--iteration-id", required=True, help="Iteration ID to export annotations from")
+@click.option("--output", "-o", default="./export", help="Output directory for YOLO export")
+def vfrog_export(iteration_id, output):
+    """Export vfrog annotations in YOLO format."""
+    from croak.integrations.vfrog import VfrogCLI
+
+    if not VfrogCLI.check_installed():
+        console.print("[red]vfrog CLI not installed.[/red]")
+        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        return
+
+    console.print(f"Exporting YOLO annotations to [cyan]{output}[/cyan]...")
+
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        task = progress.add_task("Exporting annotations...", total=None)
+        result = VfrogCLI.export_yolo(iteration_id, output_dir=output)
+        progress.update(task, completed=True)
+
+    if result['success']:
+        console.print(f"[green]✓ Export complete![/green]")
+        console.print(f"  Output directory: [cyan]{output}[/cyan]")
+    else:
+        console.print(f"[red]Export failed: {result.get('error')}[/red]")
 
 
 if __name__ == "__main__":

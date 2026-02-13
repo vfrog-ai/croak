@@ -163,11 +163,17 @@ full control over the training pipeline.
 
 ### 1. Upload Dataset Images
 
-vfrog CLI v0.1 requires **image URLs** (not local files). Images must be
-accessible via public or pre-signed URLs.
+Upload images from URLs, a local file, or an entire directory:
 
 ```bash
+# From URLs
 vfrog dataset_images upload <url1> <url2> ... --json
+
+# From a local directory
+vfrog dataset_images upload --dir /path/to/images --json
+
+# From a single local file
+vfrog dataset_images upload --file /path/to/image.jpg --json
 ```
 
 List uploaded images:
@@ -185,7 +191,11 @@ vfrog dataset_images delete --dataset_image_id <uuid>
 The object is the reference image of what you want to detect:
 
 ```bash
+# From URL
 vfrog objects create <image_url> --label "target-object" --json
+
+# From local file
+vfrog objects create --file /path/to/product.jpg --label "target-object" --json
 ```
 
 List objects:
@@ -236,7 +246,7 @@ then return to CROAK.
 After HALO review, train the model on vfrog's infrastructure:
 
 ```bash
-vfrog iteration train --iteration_id <uuid> --json
+vfrog iterations train --iteration_id <uuid> --json
 ```
 
 vfrog manages architecture, hyperparameters, and GPU allocation. You don't
@@ -258,6 +268,44 @@ If an iteration needs to be redone:
 
 ```bash
 vfrog iterations restart --iteration_id <uuid> --json
+```
+
+### 9. Check Iteration Status
+
+Check the current status of an iteration:
+
+```bash
+vfrog iterations status --iteration_id <uuid> --json
+```
+
+Watch mode polls until the iteration completes:
+
+```bash
+vfrog iterations status --iteration_id <uuid> --watch --json
+```
+
+### 10. Deploy Iteration Model
+
+Deploy a trained iteration's model to the inference endpoint:
+
+```bash
+vfrog iterations deploy --iteration_id <uuid> --json
+```
+
+### 11. Get Iteration Annotations
+
+Retrieve annotations for an iteration:
+
+```bash
+vfrog iterations annotations --iteration_id <uuid> --json
+```
+
+### 12. Export Annotations (YOLO Format)
+
+Export iteration annotations in YOLO format for local training:
+
+```bash
+vfrog export yolo --iteration_id <uuid> --output ./export --json
 ```
 
 ## Inference
@@ -325,20 +373,31 @@ VfrogCLI.check_installed()      # Binary on PATH?
 VfrogCLI.check_authenticated()  # Logged in?
 VfrogCLI.get_config()           # Current context
 
-# Dataset images
-VfrogCLI.upload_dataset_images(['https://...', 'https://...'])
+# Dataset images (URLs, local file, or directory)
+VfrogCLI.upload_dataset_images(urls=['https://...', 'https://...'])
+VfrogCLI.upload_dataset_images(directory='/path/to/images')
+VfrogCLI.upload_dataset_images(file_path='/path/to/image.jpg')
 VfrogCLI.list_dataset_images()
 
-# Objects
-VfrogCLI.create_object('https://...', label='my-product')
+# Objects (URL or local file)
+VfrogCLI.create_object(url='https://...', label='my-product')
+VfrogCLI.create_object(file_path='/path/to/product.jpg', label='my-product')
 VfrogCLI.list_objects()
 
 # Iterations
 VfrogCLI.create_iteration(object_id, random_count=20)
 VfrogCLI.run_ssat(iteration_id)
+VfrogCLI.run_ssat(iteration_id, industry='retail')
+VfrogCLI.get_iteration_status(iteration_id)
+VfrogCLI.get_iteration_status(iteration_id, watch=True)
 VfrogCLI.get_halo_url(iteration_id)
+VfrogCLI.get_annotations(iteration_id)
 VfrogCLI.train_iteration(iteration_id)
+VfrogCLI.deploy_iteration(iteration_id)
 VfrogCLI.next_iteration(iteration_id)
+
+# Export
+VfrogCLI.export_yolo(iteration_id, output_dir='./export')
 
 # Inference
 VfrogCLI.run_inference(image_path='/path/to/image.jpg')
@@ -346,14 +405,11 @@ VfrogCLI.run_inference(image_path='/path/to/image.jpg')
 
 All methods return `{'success': bool, 'output': ..., 'error': ...}`.
 
-## Known Limitations (CLI v0.1)
+## Known Limitations
 
 | Limitation | Impact | Workaround |
 |-----------|--------|------------|
-| **URL-only uploads** | Cannot upload local files directly | Host images on S3/GCS and use pre-signed URLs |
-| **No annotation export** | Cannot download annotations as YOLO/COCO files | Use vfrog SSAT path end-to-end; for classic path, use external tools |
-| **No deploy commands** | Cannot deploy models via CLI | Use `vfrog inference` to verify; deploy via CROAK to Modal or edge |
-| **No model download** | Cannot download trained weights | Use vfrog inference endpoint; for local models, use classic training |
+| **No model download** | Cannot download trained weights | Use vfrog inference endpoint; for local models, use classic training path |
 | **Platform-managed training** | No control over architecture or hyperparams | Use classic path (`--provider local` or `--provider modal`) for full control |
 
 ## Troubleshooting

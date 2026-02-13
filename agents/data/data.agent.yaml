@@ -169,7 +169,7 @@ agent:
           - "upload to vfrog"
           - "add dataset images"
         cli: "croak vfrog upload"
-        description: "Upload dataset images to vfrog project (URL-based)"
+        description: "Upload dataset images to vfrog project (from URLs, local file, or directory)"
         type: "action"
         capability: "vfrog_annotation"
         mutates_state: true
@@ -272,18 +272,28 @@ agent:
 
   vfrog_commands:
     - "vfrog dataset_images upload <urls> --json"
+    - "vfrog dataset_images upload --dir <path> --json"
+    - "vfrog dataset_images upload --file <path> --json"
     - "vfrog dataset_images list --json"
     - "vfrog dataset_images delete --dataset_image_id <id>"
     - "vfrog objects create <url> --label <label> --json"
+    - "vfrog objects create --file <path> --label <label> --json"
     - "vfrog objects list --json"
     - "vfrog objects delete --object_id <id>"
     - "vfrog iterations list --object_id <id> --json"
     - "vfrog iterations create <object_id> --random <N> --json"
     - "vfrog iterations ssat --iteration_id <id> --json"
     - "vfrog iterations ssat --iteration_id <id> --random <N> --json"
+    - "vfrog iterations ssat --iteration_id <id> --industry <string> --json"
     - "vfrog iterations halo --iteration_id <id> --json"
     - "vfrog iterations next --iteration_id <id> --json"
     - "vfrog iterations restart --iteration_id <id> --json"
+    - "vfrog iterations status --iteration_id <id> --json"
+    - "vfrog iterations status --iteration_id <id> --watch --json"
+    - "vfrog iterations deploy --iteration_id <id> --json"
+    - "vfrog iterations annotations --iteration_id <id> --json"
+    - "vfrog iterations train --iteration_id <id> --json"
+    - "vfrog export yolo --iteration_id <id> --output <dir> --json"
     - "vfrog config show --json"
 
   guardrails:

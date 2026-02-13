@@ -1,6 +1,6 @@
 {
   "name": "croak-cv",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CROAK - Computer Recognition Orchestration Agent Kit. Agentic framework for object detection model development.",
   "keywords": [
     "computer-vision",

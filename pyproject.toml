@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "croak-cv"
-version = "1.0.0-alpha"
+version = "1.0.0a1"
 description = "Computer Recognition Orchestration Agent Kit - Agentic framework for object detection"
 readme = "README.md"
 license = "MIT"
