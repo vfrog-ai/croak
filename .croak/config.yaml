@@ -1,63 +1,39 @@
-# CROAK Configuration
-# This file is created by `croak init` and customized per project
-
-version: "1.0"
-
-project:
-  name: ""  # Set by init
-  task_type: "detection"
-  created_at: ""
-
-# vfrog.ai integration (required for annotation)
-vfrog:
-  api_key_env: "VFROG_API_KEY"  # Environment variable name
-  project_id: ""  # Set after creating vfrog project
-
-# Compute configuration
-compute:
-  # Default: Modal.com (free $30 credits for new accounts)
-  provider: "modal"  # modal, local, colab, runpod
-  gpu_type: "T4"  # T4, A10G, A100
-  timeout_hours: 4
-
-# Training defaults
-training:
-  framework: "ultralytics"
-  architecture: "yolov8s"  # yolov8n, yolov8s, yolov8m, yolov11s, rt-detr
-  epochs: 125
-  batch_size: 16
-  image_size: 640
-  patience: 20  # Early stopping patience
-
-# Experiment tracking
-tracking:
-  backend: "mlflow"  # mlflow, wandb
-  mlflow:
-    tracking_uri: "./mlruns"
-  wandb:
-    project: ""
-    entity: ""
-
-# Data configuration
-data:
-  format: "yolo"
-  splits:
-    train: 0.8
-    val: 0.15
-    test: 0.05
-
-# Deployment configuration
-deployment:
-  cloud:
-    provider: "vfrog"
-    auto_scaling: true
-    min_replicas: 1
-    max_replicas: 5
-  edge:
-    format: "tensorrt"  # onnx, tensorrt, cuda
-    precision: "fp16"  # fp32, fp16, int8
-
-# Agent behavior
 agents:
+  auto_confirm: false
   verbose: true
-  auto_confirm: false  # Require confirmation for expensive operations
+compute:
+  gpu_type: T4
+  provider: modal
+  timeout_hours: 4
+created_at: null
+data:
+  format: yolo
+  test_split: 0.05
+  train_split: 0.8
+  val_split: 0.15
+deployment:
+  cloud_provider: vfrog
+  edge_format: tensorrt
+  precision: fp16
+project_name: ''
+task_type: detection
+tracking:
+  backend: mlflow
+  mlflow_uri: ./mlruns
+  wandb_entity: null
+  wandb_project: null
+training:
+  architecture: yolov8s
+  batch_size: 16
+  epochs: 125
+  framework: ultralytics
+  image_size: 640
+  patience: 20
+version: '1.0'
+vfrog:
+  api_key_env: VFROG_API_KEY
+  cli_path: null
+  current_iteration_id: null
+  object_id: null
+  organisation_id: f22014bc-4a4d-40ca-adc3-1251cea548ad
+  project_id: 3dd6d37d-a016-4e2e-9a5e-c40aeed58352

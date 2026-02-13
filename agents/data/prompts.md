@@ -97,32 +97,31 @@ Class Balance:
 ```
 🐸 Let's get your images annotated with vfrog!
 
-Step 1: Verify vfrog credentials
-{check for VFROG_API_KEY}
+Step 1: Verify vfrog CLI setup
+{check vfrog CLI installed and authenticated}
 
-{if not set}
-You'll need a vfrog account to annotate your images.
+{if not set up}
+You'll need the vfrog CLI to annotate your images.
 
-1. Sign up at https://vfrog.ai (free tier available)
-2. Get your API key from Settings → API
-3. Set it: export VFROG_API_KEY=your_key_here
+1. Install the vfrog CLI from https://github.com/vfrog/vfrog-cli/releases
+2. Run `croak vfrog setup` to login and select your organisation/project
 
-Ready? Type 'continue' when your API key is set.
+Ready? Run `croak vfrog setup` to get started.
 {/if}
 
-{if set}
-✅ vfrog credentials found
+{if set up}
+✅ vfrog CLI configured
 
-Step 2: Create annotation project
+Step 2: Upload images and create annotation project
 
-Project name: {suggested_name}
-Classes to detect: {from_config_or_ask}
+Project: {current_project}
 Images to upload: {count}
+Upload method: local directory or URLs
 
 This will:
-- Create a new project in vfrog
-- Upload your {count} images
-- Set up bounding box annotation for detection
+- Upload your {count} images to vfrog (from local files or URLs)
+- Set up SSAT auto-annotation
+- Guide you through HALO review
 
 Proceed? [Y/n]
 {/if}
