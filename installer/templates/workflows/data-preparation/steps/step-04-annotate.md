@@ -44,7 +44,7 @@ If not set up:
 >
 > **Setup steps:**
 >
-> 1. Install the CLI from https://github.com/vfrog/vfrog-cli/releases
+> 1. Install the CLI from https://github.com/vfrog-ai/vfrog-cli/releases
 > 2. Run `croak vfrog setup` to login and select your organisation/project
 >
 > Ready? Run `croak vfrog setup` to get started."
@@ -217,7 +217,7 @@ annotation_format: "{format}"
 ## Error Handling
 
 ### vfrog CLI Not Installed
-> "vfrog CLI not found. Install from: https://github.com/vfrog/vfrog-cli/releases
+> "vfrog CLI not found. Install from: https://github.com/vfrog-ai/vfrog-cli/releases
 >
 > Or use classic annotation: `croak annotate --method classic`"
 

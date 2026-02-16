@@ -263,7 +263,7 @@ agent:
         trigger: "before_vfrog_deploy"
         condition: "vfrog CLI is installed and user is authenticated"
         severity: "error"
-        error_message: "vfrog CLI not installed or not authenticated. Install from https://github.com/vfrog/vfrog-cli/releases and run 'croak vfrog setup'."
+        error_message: "vfrog CLI not installed or not authenticated. Install from https://github.com/vfrog-ai/vfrog-cli/releases and run 'croak vfrog setup'."
 
       - id: "vfrog_api_key_for_inference"
         name: "vfrog API Key for Inference"

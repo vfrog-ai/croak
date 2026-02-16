@@ -359,7 +359,7 @@ class SecureRunner:
                 'output': None,
                 'raw': None,
                 'error': 'vfrog CLI not found. Install from: '
-                         'https://github.com/vfrog/vfrog-cli/releases',
+                         'https://github.com/vfrog-ai/vfrog-cli/releases',
             }
 
     @classmethod

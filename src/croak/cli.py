@@ -298,7 +298,7 @@ def doctor(fix):
             warnings_list.append("VFROG_API_KEY not set. Needed for vfrog inference.")
     else:
         _doctor_check("vfrog CLI", False, "recommended")
-        warnings_list.append("vfrog CLI not installed. Download: https://github.com/vfrog/vfrog-cli/releases")
+        warnings_list.append("vfrog CLI not installed. Download: https://github.com/vfrog-ai/vfrog-cli/releases")
 
     # --- Project Status ---
     console.print("\n[bold]Project Status[/bold]")
@@ -720,7 +720,7 @@ def _annotate_vfrog(root, iteration_id, object_id, random_count, check_status, h
     # 1. Verify vfrog CLI is installed and authenticated
     if not VfrogCLI.check_installed():
         console.print("[red]vfrog CLI not installed.[/red]")
-        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        console.print("Install from: [cyan]https://github.com/vfrog-ai/vfrog-cli/releases[/cyan]")
         return
 
     if not VfrogCLI.check_authenticated():
@@ -1225,7 +1225,7 @@ def _train_vfrog(root, iteration_id):
 
     if not VfrogCLI.check_installed():
         console.print("[red]vfrog CLI not installed.[/red]")
-        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        console.print("Install from: [cyan]https://github.com/vfrog-ai/vfrog-cli/releases[/cyan]")
         return
 
     if not VfrogCLI.check_authenticated():
@@ -1635,7 +1635,7 @@ def deploy_vfrog(image, image_url, api_key):
 
     if not VfrogCLI.check_installed():
         console.print("[red]vfrog CLI not installed.[/red]")
-        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        console.print("Install from: [cyan]https://github.com/vfrog-ai/vfrog-cli/releases[/cyan]")
         return
 
     if not image and not image_url:
@@ -1728,7 +1728,7 @@ def setup():
     # 1. Check CLI is installed
     if not VfrogCLI.check_installed():
         console.print("[red]vfrog CLI not found.[/red]")
-        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        console.print("Install from: [cyan]https://github.com/vfrog-ai/vfrog-cli/releases[/cyan]")
         return
 
     console.print("[green]✓[/green] vfrog CLI found\n")
@@ -1845,7 +1845,7 @@ def status():
 
     if not VfrogCLI.check_installed():
         console.print("[red]vfrog CLI not installed.[/red]")
-        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        console.print("Install from: [cyan]https://github.com/vfrog-ai/vfrog-cli/releases[/cyan]")
         return
 
     result = VfrogCLI.get_config()
@@ -1881,7 +1881,7 @@ def vfrog_upload(directory, file_path, urls):
 
     if not VfrogCLI.check_installed():
         console.print("[red]vfrog CLI not installed.[/red]")
-        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        console.print("Install from: [cyan]https://github.com/vfrog-ai/vfrog-cli/releases[/cyan]")
         return
 
     if not directory and not file_path and not urls:
@@ -1919,7 +1919,7 @@ def vfrog_export(iteration_id, output):
 
     if not VfrogCLI.check_installed():
         console.print("[red]vfrog CLI not installed.[/red]")
-        console.print("Install from: [cyan]https://github.com/vfrog/vfrog-cli/releases[/cyan]")
+        console.print("Install from: [cyan]https://github.com/vfrog-ai/vfrog-cli/releases[/cyan]")
         return
 
     console.print(f"Exporting YOLO annotations to [cyan]{output}[/cyan]...")

@@ -86,7 +86,7 @@ CROAK supports two annotation workflows. You are never locked into one path.
 
 ### vfrog SSAT (recommended for ease of use)
 
-Iterative auto-annotation powered by the [vfrog CLI](https://github.com/vfrog/vfrog-cli). Upload dataset images, create a reference object, run SSAT (Synthetic Self-Annotation Technology) iterations, review labels in HALO, and train on vfrog's managed platform.
+Iterative auto-annotation powered by the [vfrog CLI](https://github.com/vfrog-ai/vfrog-cli). Upload dataset images, create a reference object, run SSAT (Synthetic Self-Annotation Technology) iterations, review labels in HALO, and train on vfrog's managed platform.
 
 ```bash
 croak vfrog setup           # Login and select organisation/project
@@ -215,7 +215,7 @@ Each agent has guardrails to prevent common mistakes, a knowledge base for domai
 - **Node.js** 18.0.0+ (for CLI installer)
 - **Python** 3.10+ (for training/evaluation)
 - **Git** (recommended)
-- **[vfrog CLI](https://github.com/vfrog/vfrog-cli)** (for SSAT annotation and vfrog deployment - optional but recommended)
+- **[vfrog CLI](https://github.com/vfrog-ai/vfrog-cli)** (for SSAT annotation and vfrog deployment - optional but recommended)
 - [vfrog.ai](https://vfrog.ai) account (for vfrog SSAT and inference)
 - NVIDIA GPU (optional - can use [Modal.com](https://modal.com) for cloud GPU)
 
@@ -224,7 +224,7 @@ Each agent has guardrails to prevent common mistakes, a knowledge base for domai
 The vfrog CLI is a standalone Go binary. It is not a Python package.
 
 ```bash
-# Download from https://github.com/vfrog/vfrog-cli/releases
+# Download from https://github.com/vfrog-ai/vfrog-cli/releases
 chmod +x vfrog && sudo mv vfrog /usr/local/bin/
 
 # Login and configure via CROAK
@@ -328,7 +328,7 @@ modal setup
 
 ### vfrog CLI not found
 
-1. Download the binary from [vfrog CLI releases](https://github.com/vfrog/vfrog-cli/releases)
+1. Download the binary from [vfrog CLI releases](https://github.com/vfrog-ai/vfrog-cli/releases)
 2. Make it executable and add to PATH:
    ```bash
    chmod +x vfrog

@@ -21,7 +21,7 @@ The vfrog CLI is a standalone Go binary. It is NOT a Python package.
 Download the latest release for your platform:
 
 ```
-https://github.com/vfrog/vfrog-cli/releases
+https://github.com/vfrog-ai/vfrog-cli/releases
 ```
 
 ### Install
@@ -420,7 +420,7 @@ All methods return `{'success': bool, 'output': ..., 'error': ...}`.
 Error: vfrog CLI not found
 
 Fix:
-1. Download from https://github.com/vfrog/vfrog-cli/releases
+1. Download from https://github.com/vfrog-ai/vfrog-cli/releases
 2. Make executable: chmod +x vfrog
 3. Move to PATH: sudo mv vfrog /usr/local/bin/
 4. Verify: vfrog version

@@ -42,15 +42,15 @@ at `vfrog-ai/vfrog-cli`. Here is the complete command surface:
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/vfrog/vfrog-cli/releases/latest/download/vfrog-darwin-arm64 -o vfrog
+curl -L https://github.com/vfrog-ai/vfrog-cli/releases/latest/download/vfrog-darwin-arm64 -o vfrog
 chmod +x vfrog && sudo mv vfrog /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/vfrog/vfrog-cli/releases/latest/download/vfrog-darwin-amd64 -o vfrog
+curl -L https://github.com/vfrog-ai/vfrog-cli/releases/latest/download/vfrog-darwin-amd64 -o vfrog
 chmod +x vfrog && sudo mv vfrog /usr/local/bin/
 
 # Linux (AMD64)
-curl -L https://github.com/vfrog/vfrog-cli/releases/latest/download/vfrog-linux-amd64 -o vfrog
+curl -L https://github.com/vfrog-ai/vfrog-cli/releases/latest/download/vfrog-linux-amd64 -o vfrog
 chmod +x vfrog && sudo mv vfrog /usr/local/bin/
 ```
 
@@ -913,7 +913,7 @@ guardrails:
       trigger: "before_annotation"
       condition: "vfrog binary is available on PATH"
       severity: "error"
-      error_message: "vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases"
+      error_message: "vfrog CLI not installed. Download from: https://github.com/vfrog-ai/vfrog-cli/releases"
 
     - id: "vfrog_authenticated"
       name: "vfrog Authenticated"
@@ -1282,7 +1282,7 @@ guardrails:
       trigger: "before_vfrog_deploy"
       condition: "vfrog CLI is installed and user is authenticated"
       severity: "error"
-      error_message: "vfrog CLI not installed or not authenticated. Install from https://github.com/vfrog/vfrog-cli/releases and run 'vfrog login'."
+      error_message: "vfrog CLI not installed or not authenticated. Install from https://github.com/vfrog-ai/vfrog-cli/releases and run 'vfrog login'."
 
     - id: "vfrog_api_key_for_inference"
       name: "vfrog API Key for Inference"

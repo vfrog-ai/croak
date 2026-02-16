@@ -368,7 +368,7 @@ agent:
         trigger: "before_vfrog_annotation"
         condition: "vfrog binary is available on PATH"
         severity: "error"
-        error_message: "vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases"
+        error_message: "vfrog CLI not installed. Download from: https://github.com/vfrog-ai/vfrog-cli/releases"
 
       - id: "vfrog_authenticated"
         name: "vfrog Authenticated"

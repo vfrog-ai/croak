@@ -467,5 +467,5 @@ class VfrogClient:
         raise NotImplementedError(
             "VfrogClient has been replaced by VfrogCLI. "
             "Install the vfrog CLI binary and use VfrogCLI static methods instead. "
-            "See: https://github.com/vfrog/vfrog-cli/releases"
+            "See: https://github.com/vfrog-ai/vfrog-cli/releases"
         )
