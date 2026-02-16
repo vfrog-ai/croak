@@ -161,7 +161,7 @@ export async function doctorCommand(options) {
     }
   } else {
     printCheck('vfrog CLI', false, 'recommended');
-    warnings.push('vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases');
+    warnings.push('vfrog CLI not installed. Download from: https://github.com/vfrog-ai/vfrog-cli/releases');
   }
 
   // vfrog API key (for inference)

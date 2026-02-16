@@ -141,7 +141,7 @@ vfrog CLI Setup Instructions
 =============================
 
 1. Download the vfrog CLI from:
-   https://github.com/vfrog/vfrog-cli/releases
+   https://github.com/vfrog-ai/vfrog-cli/releases
 
 2. Install the binary:
 
@@ -166,7 +166,7 @@ vfrog CLI Setup Instructions
 5. For inference, set your API key:
    export VFROG_API_KEY=your_key_here
 
-For more information, visit: https://github.com/vfrog/vfrog-cli
+For more information, visit: https://github.com/vfrog-ai/vfrog-cli
 `;
 }
 

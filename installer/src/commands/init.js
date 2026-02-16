@@ -157,7 +157,7 @@ export async function initCommand(options) {
           spinner.warn('vfrog not authenticated. Run `croak vfrog setup` to login.');
         }
       } else {
-        spinner.warn('vfrog CLI not installed. Download from: https://github.com/vfrog/vfrog-cli/releases');
+        spinner.warn('vfrog CLI not installed. Download from: https://github.com/vfrog-ai/vfrog-cli/releases');
       }
     }
 

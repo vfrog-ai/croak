@@ -103,7 +103,7 @@ Step 1: Verify vfrog CLI setup
 {if not set up}
 You'll need the vfrog CLI to annotate your images.
 
-1. Install the vfrog CLI from https://github.com/vfrog/vfrog-cli/releases
+1. Install the vfrog CLI from https://github.com/vfrog-ai/vfrog-cli/releases
 2. Run `croak vfrog setup` to login and select your organisation/project
 
 Ready? Run `croak vfrog setup` to get started.
